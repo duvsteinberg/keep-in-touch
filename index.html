@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-Q1HVpVdI5c/+goTk6sGvTAaj4UOvo+mlsN/wDejK5VM='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-qtoO/bzRNUS8BxI2cnP1an4jaKb9MduSzZ1+vDmcytg='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="description" content="Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.">
 <meta name="theme-color" content="#edf1ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">
@@ -115,7 +115,11 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 .card.spinning > :not(.fx) { visibility: hidden; }
 .fx { position: absolute; inset: 0; z-index: 2; border-radius: 17px; background: var(--surface); overflow: hidden; }
 .fx > .eyebrow { position: absolute; left: 18px; top: 16px; }
-.fx-mask { position: absolute; inset: 0; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent); }
+.fx-mask { position: absolute; inset: 0; overflow: hidden; }
+/* the reel's soft top and bottom edges: two still layers over the moving names (a CSS mask made the iPhone redraw every frame) */
+.reel-fade { position: absolute; left: 0; right: 0; pointer-events: none; }
+.reel-fade.top { top: 0; background: linear-gradient(var(--surface), transparent); }
+.reel-fade.bottom { bottom: 0; background: linear-gradient(transparent, var(--surface)); }
 /* All nine spins share the prize wheel's colors: green tints (--w1 to --w4) for faces, slices, tiles and cards,
    the Call green for pointers, the dial's dark for rims and hubs, and the ink for today's name. */
 .c0 { --tint: var(--w1); } .c1 { --tint: var(--w2); } .c2 { --tint: var(--w3); } .c3 { --tint: var(--w4); }
@@ -130,7 +134,9 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 .fly { position: absolute; margin: 0; white-space: nowrap; font-family: var(--font-display); font-weight: 600; font-size: var(--name-size); line-height: 1.08; transform-origin: 0 0; color: var(--ink); will-change: transform, opacity; }
 .pill { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 4px 11px; border-radius: 999px; background: var(--tint, var(--surface)); border: 1px solid var(--line); color: var(--ink); font-family: var(--font-display); font-weight: 600; font-size: 1rem; will-change: transform, opacity; }
 .pill.chosen { border-color: var(--call); box-shadow: 0 0 0 1px var(--call); }
-.dealt { position: absolute; inset: 0; border-radius: 17px; background: var(--tint, var(--surface)); padding: 16px 18px; display: grid; gap: 12px; align-content: start; box-shadow: inset 0 0 0 1px var(--line), 0 8px 22px var(--shadow); will-change: transform; }
+/* a plain border, no shadow: a shadow on a turning card made the iPhone redraw it every frame (about 16 frames a second);
+   the 1px border is taken out of the padding, so the name sits exactly where the card's own name does */
+.dealt { position: absolute; inset: 0; box-sizing: border-box; border-radius: 17px; background: var(--tint, var(--surface)); border: 1px solid var(--line); padding: 15px 17px; display: grid; gap: 12px; align-content: start; will-change: transform; }
 .dealt .eyebrow { margin: 0; }
 .board { position: absolute; display: flex; gap: 3px; align-items: center; }
 /* split-flap tiles: every tile is the same width, so the row never shifts while the letters flip */
@@ -2085,7 +2091,10 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     });
     var band = el('div', 'reel-band');
     band.style.top = (g.top - 3) + 'px'; band.style.height = (g.h + 6) + 'px';
-    fx.appendChild(band); mask.appendChild(strip); fx.appendChild(mask);
+    var fadeTop = el('div', 'reel-fade top'), fadeBottom = el('div', 'reel-fade bottom');
+    fadeTop.style.height = Math.max(0, Math.min(g.H * 0.09, g.top - 4)) + 'px'; // stops above the green window
+    fadeBottom.style.height = (g.H * 0.09) + 'px';
+    fx.appendChild(band); mask.appendChild(strip); fx.appendChild(mask); fx.appendChild(fadeTop); fx.appendChild(fadeBottom);
     // only the strip's position animates (no blur), so the phone moves one ready-made layer and never repaints mid-spin
     var end = g.top - before * g.h, duration = quick ? 360 : 1600;
     var move = play(strip, [
@@ -2150,7 +2159,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       var last = wait(t + 170).then(function () {
         var d = dealt(g.name);
         return play(d, [{ transform: 'translateX(' + w + 'px) rotate(6deg)' }, { transform: 'translateX(-6px) rotate(-0.5deg)', offset: 0.8 }, { transform: 'none' }], { duration: 440, easing: 'cubic-bezier(.2,.75,.3,1)', fill: 'forwards' })
-          .then(function () { d.style.transition = 'box-shadow 180ms ease'; d.style.boxShadow = 'inset 0 0 0 1px transparent'; return wait(180); });
+          .then(function () { d.style.transition = 'border-color 180ms ease'; d.style.borderColor = 'transparent'; return wait(180); });
       });
       return Promise.all(flights.concat([last]));
     },

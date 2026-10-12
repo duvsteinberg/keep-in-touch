@@ -10,9 +10,9 @@ What changed in each version of Keep in Touch, newest first. Releases: https://g
 - **Smoother spins:**
   - **Prize wheel:** the wheel and the clicker each turn as one ready-drawn picture instead of being redrawn every frame, which caused the stutter. When it lands, the other slices fade toward light instead of turning grey.
   - **Board:** every tile is the same width, so the row no longer jiggles while the letters flip, and long names fit the card (the tiles had picked up the Stats tiles' padding and ran off the edge). The tiles fade before the name rises in their place.
-  - **Deal:** the "Your call today" line no longer overlaps the name on the dealt cards.
+  - **Deal:** smooth on iPhones (it ran at about 16 frames a second there): the cards have a plain border instead of a shadow, which the iPhone had to redraw on every frame. The "Your call today" line no longer overlaps the name on the dealt cards.
   - **Spotlight:** the other names now fade away when the highlight stops (they used to stay on screen under the landing card).
-  - **Reel:** no more blur (costly on phones); the names stream through a green window on the name line.
+  - **Reel:** smooth on iPhones (about 19 frames a second there before): no more blur, and the soft top and bottom edges are still layers instead of a mask. The names stream through a green window on the name line.
   - **Orbit, Spotlight, Prize wheel:** the name leaves its pill smoothly instead of the pill blinking out.
   - **Classic dial:** the finger wheel is one shape with real holes instead of a mask, which is cheaper to turn.
   - **Tuner and Reel:** a steadier slow-down, without the last half second of near-standstill.
