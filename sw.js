@@ -1,6 +1,6 @@
 // Keep in Touch service worker: keeps the app working without a signal.
 // It caches only the app's own files. Your contacts and history live in the browser's storage, never here.
-const CACHE = 'kit-f43c70a4d043';
+const CACHE = 'kit-e11478a151ba';
 const ASSETS = ["./","./index.html","./manifest.webmanifest","./icons/icon-192.png","./icons/icon-512.png","./icons/maskable-512.png","./icons/apple-touch-icon.png"];
 
 // Fetch fresh copies, not the browser's short-term cache, so a new version never stores an older page under its name.
