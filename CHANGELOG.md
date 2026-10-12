@@ -5,6 +5,7 @@ What changed in each version of Keep in Touch, newest first. Releases: https://g
 ## v0.1.6 · 2026-10-12
 
 - **The app turns with the phone.** It used to stay upright when the phone was turned sideways. An app already on the home screen may take a day to pick this up; adding it to the home screen again makes it immediate (your contacts stay, they're kept in the browser).
+- **No more empty space under the card after a spin.** The screen used to scroll the card to the very top and add blank space below it to make room (up to a third of a tall phone's screen). Now it scrolls only as far as needed to show the whole card above the tabs, often not at all; a card taller than the screen still goes to the top.
 - **Holding Spin no longer selects text.** While a finger is on a spin button and while a spin plays, nothing on the screen can be selected.
 - **One color scheme for all nine spins:** the prize wheel's greens. Green-tinted cards, tiles, faces and slices, the Call green for pointers and the landed letters, the dark only for rims and hubs. In light and dark mode.
 - **Smoother spins:**

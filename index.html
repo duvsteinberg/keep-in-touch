@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-qtoO/bzRNUS8BxI2cnP1an4jaKb9MduSzZ1+vDmcytg='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-dHyw9ObXgt08MMmMuZLZuUr4296pIRUESOPOJUNJJ0I='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="description" content="Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.">
 <meta name="theme-color" content="#edf1ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">
@@ -2411,14 +2411,18 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     return lastFun;
   }
 
-  // After a spin the card is what matters (name, number, Call, Spin again), so the screen scrolls it to the top.
-  // The page gets just enough room below the card for that; the big Spin stays above if you scroll back up.
+  // After a spin the card is what matters (name, number, Call, Spin again), so the screen scrolls just far enough
+  // to show all of it above the tabs. On a tall phone that may be no scroll at all, with the big Spin still above;
+  // a card taller than the screen goes to the top. No empty space is added below the card to make room.
   function bringCardUp(card) {
-    var top = card.getBoundingClientRect().top;
-    if (top >= 0 && top < 70) return;
-    var room = window.innerHeight - card.offsetHeight - 100;
-    $('view-spin').style.paddingBottom = Math.max(16, room) + 'px';
-    try { card.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' }); } catch (e) { card.scrollIntoView(true); }
+    var r = card.getBoundingClientRect();
+    var topRoom = parseFloat(getComputedStyle(card).scrollMarginTop) || 12; // 12 px plus the notch, if any
+    var bottomRoom = document.querySelector('.tabs').getBoundingClientRect().top - 12;
+    var by = r.height > bottomRoom - topRoom ? r.top - topRoom // too tall to show whole: its top at the top
+      : r.top < topRoom ? r.top - topRoom // partly above the screen: back up to its top
+      : r.bottom > bottomRoom ? r.bottom - bottomRoom : 0; // below the tabs: up just to its bottom
+    if (Math.abs(by) < 2) return;
+    try { window.scrollBy({ top: by, behavior: reduced ? 'auto' : 'smooth' }); } catch (e) { window.scrollBy(0, by); }
   }
 
   function animate(kind) {
@@ -2598,7 +2602,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     var locked = mode === 'checkin' || mode === 'would';
     $('dial').setAttribute('aria-disabled', locked ? 'true' : 'false');
     $('dial').setAttribute('aria-label', locked ? 'Answer below first' : 'Spin to pick someone to call. Press and hold for a fun spin.');
-    if (!p || mode === 'idle' || mode === 'empty') { card.hidden = true; $('view-spin').style.paddingBottom = ''; return; }
+    if (!p || mode === 'idle' || mode === 'empty') { card.hidden = true; return; }
     card.hidden = false;
     // why they came up is fixed when they're picked, so tagging doesn't shift the card under your thumb
     var whyKey = ui.pick.id + ':' + ui.pick.spinId;

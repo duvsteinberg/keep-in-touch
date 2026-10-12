@@ -342,8 +342,22 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   ok(tapOrbit.kind.startsWith('orbit') && tapOrbit.landed && againOrbit.kind.startsWith('quick') && againOrbit.style === 'orbit' && againOrbit.landed &&
     !holdOther.kind.startsWith('orbit') && holdOther.landed,
     'with Orbit chosen, Spin plays it, Spin again plays it quickly (' + againOrbit.secs + ' s), and holding plays another (' + holdOther.kind + ')');
-  const cardTop = await page.evaluate(() => document.getElementById('card').getBoundingClientRect().top);
-  ok(cardTop >= -2 && cardTop < 80, 'after a spin the card sits at the top of the screen (' + Math.round(cardTop) + ' px)');
+  // after a spin the whole card shows above the tabs, scrolled no further than that and with no empty space added below;
+  // on a screen too short for the whole card, its top goes to the top
+  const where = () => page.evaluate(() => {
+    const c = document.getElementById('card').getBoundingClientRect(), tabs = document.querySelector('.tabs').getBoundingClientRect().top;
+    return { top: Math.round(c.top), bottom: Math.round(c.bottom), tabs: Math.round(tabs), scrolled: Math.round(scrollY), pad: document.getElementById('view-spin').style.paddingBottom };
+  });
+  const tall = await where();
+  ok(tall.pad === '' && tall.top >= 0 && tall.bottom <= tall.tabs && (tall.scrolled === 0 || tall.tabs - tall.bottom <= 30),
+    'after a spin the whole card shows above the tabs, with no empty space below it (card ' + tall.top + '–' + tall.bottom + ' px, tabs at ' + tall.tabs + ', scrolled ' + tall.scrolled + ')');
+  const phoneSize = page.viewportSize();
+  await page.setViewportSize({ width: phoneSize.width, height: 480 });
+  await spinKind('#dial', 300);
+  const short = await where();
+  await page.setViewportSize(phoneSize);
+  ok(short.pad === '' && short.top >= 0 && short.top <= 60 && short.bottom > short.tabs,
+    'on a short screen the card goes to the top (card top ' + short.top + ' px, tabs at ' + short.tabs + ')');
   await page.click('.tab[data-go="settings"]');
   await page.click('[data-everyday="reel"]');
   await page.click('.tab[data-go="spin"]');
