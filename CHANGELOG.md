@@ -2,6 +2,23 @@
 
 What changed in each version of Keep in Touch, newest first. Releases: https://github.com/duvsteinberg/keep-in-touch/releases
 
+## v0.1.6 · 2026-10-12
+
+- **The app turns with the phone.** It used to stay upright when the phone was turned sideways. An app already on the home screen may take a day to pick this up; adding it to the home screen again makes it immediate (your contacts stay, they're kept in the browser).
+- **Holding Spin no longer selects text.** While a finger is on a spin button and while a spin plays, nothing on the screen can be selected.
+- **One color scheme for all nine spins:** the prize wheel's greens. Green-tinted cards, tiles, faces and slices, the Call green for pointers and the landed letters, the dark only for rims and hubs. In light and dark mode.
+- **Smoother spins:**
+  - **Prize wheel:** the wheel and the clicker each turn as one ready-drawn picture instead of being redrawn every frame, which caused the stutter. When it lands, the other slices fade toward light instead of turning grey.
+  - **Board:** every tile is the same width, so the row no longer jiggles while the letters flip, and long names fit the card (the tiles had picked up the Stats tiles' padding and ran off the edge). The tiles fade before the name rises in their place.
+  - **Deal:** the "Your call today" line no longer overlaps the name on the dealt cards.
+  - **Spotlight:** the other names now fade away when the highlight stops (they used to stay on screen under the landing card).
+  - **Reel:** no more blur (costly on phones); the names stream through a green window on the name line.
+  - **Orbit, Spotlight, Prize wheel:** the name leaves its pill smoothly instead of the pill blinking out.
+  - **Classic dial:** the finger wheel is one shape with real holes instead of a mask, which is cheaper to turn.
+  - **Tuner and Reel:** a steadier slow-down, without the last half second of near-standstill.
+- **Share my stats:** **Send by WhatsApp** and **Send by email** open with the summary filled in; you choose who gets it. Copy and Save as a file are still there.
+- The engine is unchanged (0.1.9).
+
 ## v0.1.5 · 2026-10-12
 
 - **The prize wheel is the everyday spin** for new users, in the app's own greens and greys (light and dark). Anyone can still choose another in Settings → Your spin.

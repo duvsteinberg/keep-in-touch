@@ -55,8 +55,8 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     const res = await fetch(link.href);
     return { status: res.status, json: await res.json() };
   });
-  ok(manifest.status === 200 && manifest.json.display === 'standalone' && manifest.json.icons.some((i) => i.sizes === '512x512') && manifest.json.icons.some((i) => i.purpose === 'maskable'),
-    'manifest: standalone, 192/512 and maskable icons');
+  ok(manifest.status === 200 && manifest.json.display === 'standalone' && manifest.json.orientation === 'any' && manifest.json.icons.some((i) => i.sizes === '512x512') && manifest.json.icons.some((i) => i.purpose === 'maskable'),
+    'manifest: standalone, turns with the phone, 192/512 and maskable icons');
   // the browser enforces "nothing leaves your phone": anything from another address is refused before it's requested
   const errorsBefore = errors.length;
   const csp = await page.evaluate(() => new Promise((resolve) => {
@@ -105,7 +105,15 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   await page.click('#dial');
   await sleep(300);
   const wheel = await page.evaluate(() => { const fx = document.querySelector('#card .fx'); return { kind: fx ? fx.getAttribute('data-spin') : 'none', hidden: document.getElementById('card').classList.contains('spinning') }; });
-  const stoppedOn = await page.waitForFunction(() => { const l = document.querySelector('#card .fx .w-label.on'); return l && l.textContent; }, null, { timeout: 3300, polling: 30 }).then((h) => h.jsonValue(), () => '');
+  // the name it reports is the slice under the clicker, worked out from how far the wheel actually turned
+  const stoppedOn = await page.waitForFunction(() => {
+    const l = document.querySelector('#card .fx .w-label.on'), layer = document.querySelector('#card .fx .w-layer');
+    if (!l || !layer) return false;
+    const segs = [...layer.querySelectorAll('.w-seg')], k = segs.findIndex((x) => x.classList.contains('on'));
+    const deg = parseFloat((/rotate\(([-\d.]+)deg\)/.exec(layer.style.transform) || [])[1]);
+    const under = Math.floor(((360 - (deg % 360)) % 360) / (360 / segs.length));
+    return l.textContent + (under === k ? '' : ' (but the clicker is on slice ' + under + ')');
+  }, null, { timeout: 3300, polling: 30 }).then((h) => h.jsonValue(), () => '');
   await page.waitForFunction(() => !document.querySelector('#card .fx'), null, { timeout: 3300, polling: 50 }).catch(() => {});
   const first = (await page.textContent('#pname')).trim();
   ok(first.length > 1, 'spin picks someone: ' + first);
@@ -255,6 +263,11 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   ok(/Since the first spin/.test(shareText) && /By week/.test(shareText) && /By day-one signal/.test(shareText), 'the shareable summary covers the whole test, week by week and by signal');
   const leaked = ['Rachel', 'Josh', 'Carter', 'Mom', 'Dana', 'Pizza', 'Steve', 'Sarah', 'David', 'José', 'Friends', '050', '052'].filter((w) => shareText.includes(w));
   ok(leaked.length === 0, 'the shareable summary has no names, labels or numbers' + (leaked.length ? ': ' + leaked.join(', ') : ''));
+  const wa = await page.getAttribute('#share-wa', 'href'), mail = await page.getAttribute('#share-mail', 'href');
+  const waText = wa.startsWith('https://wa.me/?text=') ? decodeURIComponent(wa.slice('https://wa.me/?text='.length)) : '';
+  const mailBody = mail.startsWith('mailto:?subject=Keep%20in%20Touch%20stats&body=') ? decodeURIComponent(mail.split('&body=')[1]).replace(/\r\n/g, '\n') : '';
+  ok(waText === shareText && mailBody === shareText && (await page.getAttribute('#share-wa', 'target')) === '_blank',
+    'Send by WhatsApp and Send by email open with the same summary filled in, and no one chosen for you');
   await page.screenshot({ path: shots + '/' + (iphone ? 'iphone-' : '') + 'v01-test.png', fullPage: true });
 
   await page.click('.tab[data-go="settings"]');
@@ -277,13 +290,16 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     const seen = await page.evaluate(() => {
       const fx = document.querySelector('#card .fx');
       const rows = fx ? [...fx.querySelectorAll('.reel-row')] : [];
-      return { kind: fx ? fx.getAttribute('data-spin') + ':' + rows.length : 'none', style: fx ? fx.getAttribute('data-style') : '', landing: rows.length >= 30 ? rows[28].textContent : '' };
+      const board = fx && fx.querySelector('.board');
+      return { kind: fx ? fx.getAttribute('data-spin') + ':' + rows.length : 'none', style: fx ? fx.getAttribute('data-style') : '', landing: rows.length >= 30 ? rows[28].textContent : '',
+        noSelect: document.body.classList.contains('no-select'), fits: !board || board.getBoundingClientRect().right <= fx.getBoundingClientRect().right + 1 };
     });
     const gone = await page.waitForFunction(() => !document.querySelector('#card .fx'), null, { timeout: Math.max(100, 3300 - (Date.now() - t0)), polling: 50 }).then(() => true, () => false);
     const secs = ((Date.now() - t0) / 1000 + (held ? 0.17 : 0)).toFixed(1);
     await sleep(Math.max(0, 2600 - (Date.now() - t0)));
     const name = (await page.textContent('#pname')).trim();
-    return { kind: seen.kind, style: seen.style, landing: seen.landing, name, secs, landed: gone && name.length > 1 };
+    const after = await page.evaluate(() => ({ noSelect: document.body.classList.contains('no-select'), selected: String(window.getSelection()) }));
+    return { kind: seen.kind, style: seen.style, landing: seen.landing, name, secs, landed: gone && name.length > 1, guarded: seen.noSelect && !after.noSelect && !after.selected, fits: seen.fits };
   };
   const timed = (r, name) => name + ' ' + r.secs + ' s' + (r.landed ? '' : ' (did not land)');
   const fulls = [await spinKind('#dial', 300), await spinKind('#dial', 300)];
@@ -296,6 +312,7 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   const styles = funs.map((r) => r.kind.split(':')[0]);
   ok(new Set(styles).size === 4 && styles.every((x) => ['reel', 'orbit', 'deal', 'board', 'spotlight', 'classic', 'phone', 'tuner'].includes(x)) && funs.every((r) => r.landed),
     'holding Spin or Spin again plays a fun spin, a different style each time, and lands each time: ' + funs.map((r, i) => timed(r, styles[i])).join(', '));
+  ok(fulls.concat([quick], funs).every((r) => r.guarded), 'nothing can be selected while a spin plays, and selecting works again once it lands');
   const funCount = await page.evaluate(() => JSON.parse(localStorage.getItem('kit.v0.state')).events.filter((e) => e.k === 'show' && e.f).length);
   ok(funCount === 4, 'the engine marks the fun spins (' + funCount + ')');
   await page.click('.tab[data-go="settings"]');
@@ -310,7 +327,7 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     await page.click('[data-everyday="' + style + '"]');
     await page.click('.tab[data-go="spin"]');
     const r = await spinKind('#dial', 300);
-    everyStyle.push({ style, r, right: r.landed && r.kind.startsWith(style === 'reel' ? 'full' : style) && (style !== 'reel' || r.landing === r.name) });
+    everyStyle.push({ style, r, right: r.landed && r.fits && r.kind.startsWith(style === 'reel' ? 'full' : style) && (style !== 'reel' || r.landing === r.name) });
   }
   ok(everyStyle.every((x) => x.right), 'each of the nine styles plays when chosen and lands (the reel on the pick): ' +
     everyStyle.map((x) => timed(x.r, x.style) + (x.r.kind.startsWith(x.style === 'reel' ? 'full' : x.style) ? '' : ' (played ' + x.r.kind + ')')).join(', '));

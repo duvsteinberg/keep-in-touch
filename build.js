@@ -64,7 +64,7 @@ write('manifest.webmanifest', JSON.stringify({
   start_url: './',
   scope: './',
   display: 'standalone',
-  orientation: 'portrait',
+  orientation: 'any', // turns with the phone
   background_color: '#edf1ee',
   theme_color: '#edf1ee',
   icons: [
