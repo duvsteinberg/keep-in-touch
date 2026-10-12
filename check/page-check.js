@@ -17,7 +17,7 @@ const results = [];
 const ok = (cond, msg) => { results.push((cond ? 'PASS ' : 'FAIL ') + msg); };
 let browser = null;
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.json': 'application/json', '.vcf': 'text/vcard' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.vcf': 'text/vcard' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
   if (p.endsWith('/')) p += 'index.html';
@@ -76,9 +76,32 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   await page.reload();
   await sleep(500);
   ok(await page.evaluate(() => !!navigator.serviceWorker.controller), 'service worker controls the page after reload');
+  // the link preview and the install sheet's screenshots are there and load
+  const shareable = await page.evaluate(async () => {
+    const meta = (p) => (document.querySelector('meta[property="' + p + '"]') || {}).content || '';
+    const img = new URL('assets/og-image.jpg', location.href).href;
+    const m = await (await fetch(document.querySelector('link[rel="manifest"]').href)).json();
+    const loads = await Promise.all([img].concat(m.screenshots.map((x) => new URL(x.src, location.href).href)).map((u) => fetch(u).then((r) => r.ok && /image\/jpeg/.test(r.headers.get('content-type') || ''))));
+    return { title: meta('og:title'), image: meta('og:image'), shots: m.screenshots.length, narrow: m.screenshots.every((x) => x.form_factor === 'narrow' && x.label), loads: loads.every(Boolean) };
+  });
+  ok(/Keep in Touch/.test(shareable.title) && /\/assets\/og-image\.jpg$/.test(shareable.image) && shareable.shots === 4 && shareable.narrow && shareable.loads,
+    'a link preview (title, picture) and four install-sheet screenshots, all loading');
+
+  // the first open: a welcome screen (no header, banner or tabs) with the privacy promise and one clear first step
+  const welcome = await page.evaluate(() => ({ shown: !document.getElementById('view-welcome').hidden, text: document.getElementById('view-welcome').textContent,
+    tabs: getComputedStyle(document.querySelector('.tabs')).display, banner: getComputedStyle(document.getElementById('banner')).display }));
+  ok(welcome.shown && /never leave your phone/.test(welcome.text) && welcome.tabs === 'none' && welcome.banner === 'none',
+    'the first open shows the welcome screen: what it does, that contacts stay on the phone, and one first step');
+  await page.click('[data-welcome="import"]');
+  const importClean = await page.evaluate(() => !document.getElementById('view-import').hidden && document.getElementById('banner').hidden);
+  await page.click('#view-import [data-back]');
+  await page.waitForFunction(() => !document.getElementById('view-welcome').hidden, null, { timeout: 3000 }).catch(() => {});
+  ok(importClean && await page.isVisible('#view-welcome'), '"Bring in my contacts" opens the import screen (without the example note), and ← Back returns to the welcome');
+  await page.click('[data-welcome="try"]');
+  await sleep(200);
 
   // example mode and the call flow, including the would-question after "No answer"
-  ok(await page.isVisible('#banner') && (await page.textContent('#banner')).includes('example contacts'), 'example banner on first open');
+  ok(await page.isVisible('#banner') && (await page.textContent('#banner')).includes('example contacts'), '"Try it with example contacts" opens the example pick, with the example note');
   ok(await page.isVisible('#card'), 'an example pick shows on first open');
   await page.click('#call');
   await sleep(100);

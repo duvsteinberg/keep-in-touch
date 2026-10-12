@@ -4,8 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-ByRj0FqO0yA/EBhFlEoUbqm+CjLLUlsi7v9RvkNAS7Q='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
-<meta name="description" content="Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-mONadu6X6eBJ7FQPp6mq/xfPo4aie03638lJXnNYrN8='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="description" content="Spin, and it picks one person from your contacts worth a call today. Everything stays on your phone.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Keep in Touch">
+<meta property="og:title" content="Keep in Touch: who are you calling today?">
+<meta property="og:description" content="Spin, and it picks one person from your contacts worth a call today. Everything stays on your phone.">
+<meta property="og:url" content="https://duvsteinberg.github.io/keep-in-touch/">
+<meta property="og:image" content="https://duvsteinberg.github.io/keep-in-touch/assets/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Keep in Touch on a phone, showing today's pick from example contacts">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#edf1ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
@@ -181,6 +192,23 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 .view-title { margin: 4px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 1.6rem; line-height: 1.15; text-wrap: balance; }
 .sub { margin: 0; color: var(--muted); }
 .back { justify-self: start; min-height: 36px; padding: 0 2px; border: 0; background: none; color: var(--muted); font-weight: 600; cursor: pointer; }
+/* the first open: what it does, the privacy promise, and one clear first step (no header, banner or tabs) */
+body.welcoming .top, body.welcoming .banner, body.welcoming .tabs { display: none !important; }
+body.welcoming .app { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.welcome { min-height: calc(100vh - 32px); min-height: calc(100dvh - 32px); box-sizing: border-box; display: grid; align-content: center; justify-items: center; gap: 12px; padding-block: 24px; text-align: center; }
+.welcome-art svg { display: block; width: 172px; height: 172px; overflow: visible; }
+.welcome-wheel { transform-box: fill-box; transform-origin: center; animation: welcome-spin 1.8s cubic-bezier(.15,.7,.2,1) 0.2s both; }
+@keyframes welcome-spin { from { transform: rotate(-420deg); } to { transform: rotate(0deg); } }
+@media (prefers-reduced-motion: reduce) { .welcome-wheel { animation: none; } }
+.welcome-name { margin: 6px 0 0; color: var(--muted); font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; letter-spacing: 0.02em; }
+.welcome-title { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 8.6vw, 2.4rem); line-height: 1.1; text-wrap: balance; }
+.welcome-lead { margin: 0; max-width: 34ch; color: var(--muted); font-size: 1.02rem; text-wrap: pretty; }
+.welcome-private { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 0; padding: 8px 14px; border-radius: 14px; background: var(--w1); color: var(--ink); font-size: 0.88rem; font-weight: 600; text-align: left; }
+.welcome-private svg { flex: 0 0 auto; width: 15px; height: 15px; color: var(--call); }
+.welcome-actions { display: grid; gap: 6px; width: 100%; max-width: 360px; margin-top: 12px; }
+/* a short screen (a small iPhone) keeps both buttons in view */
+@media (max-height: 700px) { .welcome { gap: 8px; padding-block: 12px; } .welcome-art svg { width: 112px; height: 112px; } .welcome-actions { margin-top: 6px; } }
+
 /* Settings: grouped rows like the phone's own Settings app; each row names a setting and shows its current value */
 .group { display: grid; gap: 6px; }
 .group-title { margin: 8px 4px 0; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
@@ -289,6 +317,19 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   <div class="banner" id="banner" hidden></div>
 
   <main id="main">
+    <!-- WELCOME: the very first open, before there are any contacts -->
+    <section id="view-welcome" class="welcome" hidden aria-labelledby="welcome-title">
+      <div class="welcome-art" id="welcome-art" aria-hidden="true"></div>
+      <p class="welcome-name">Keep in Touch</p>
+      <h2 class="welcome-title" id="welcome-title">Who are you calling today?</h2>
+      <p class="welcome-lead">Spin, and it picks one person from your contacts worth a call today. Call, tell it how it went, and it learns.</p>
+      <p class="welcome-private"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.6 7V5.2a3.4 3.4 0 0 1 6.8 0V7" fill="none" stroke="currentColor" stroke-width="1.7"/><rect x="2.8" y="7" width="10.4" height="7.6" rx="1.8" fill="currentColor"/></svg>Your contacts never leave your phone. No account, no tracking.</p>
+      <div class="welcome-actions">
+        <button class="btn btn-call" type="button" data-welcome="import">Bring in my contacts</button>
+        <button class="btn btn-quiet" type="button" data-welcome="try">Try it with example contacts</button>
+      </div>
+    </section>
+
     <!-- SPIN -->
     <section id="view-spin" class="stack" aria-label="Spin">
       <div class="dial-wrap">
@@ -1684,7 +1725,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   'use strict';
   var E = window.KITEngine;
   var V = window.KITVcard;
-  var APP_VERSION = '0.1.7';
+  var APP_VERSION = '0.1.8';
   var DAY = 86400000;
   var STORE_KEY = 'kit.v0.state'; // unchanged from v0 so existing progress carries over
   var reduced = false;
@@ -2595,7 +2636,8 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   function renderBanner() {
     var b = $('banner');
     var due = backupDue();
-    if (demo) {
+    if (demo && ui.view === 'import') b.hidden = true;
+    else if (demo) {
       b.className = 'banner';
       b.innerHTML = '<p>These are example contacts so you can try it. Bring in yours to start for real.</p><button class="btn btn-small btn-ink" type="button" data-go="import">Bring in contacts</button>';
       b.hidden = false;
@@ -2993,9 +3035,10 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       if (!armed.erase) { arm('erase'); return; }
       clearTimeout(armed.erase); armed.erase = 0;
       try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(ERR_KEY); } catch (e) {}
+      markWelcomed(false);
       demo = true; state = demoState(); ui.pick = null; ui.mode = 'idle';
-      toast('Erased. You’re back to the example contacts.');
-      go('spin');
+      toast('Erased. Nothing from before is left on this device.');
+      go('welcome');
     });
     var note = $('help-note');
     if (note) {
@@ -3065,6 +3108,21 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     errors.forEach(function (e) { lines.push('- ' + new Date(e.t).toISOString().slice(0, 16).replace('T', ' ') + ' UTC, v' + e.v + ': ' + e.m + (e.at ? ' (' + e.at + ')' : '')); });
     lines.push('', 'The app adds no names, phone numbers or labels to this report.');
     return lines.join('\n');
+  }
+
+  // ------------------------------------------------------------ the first open
+  // Before any contacts: one screen that says what the app does and that contacts stay on the phone, with one clear
+  // first step. Seen once on a device, and again after Erase everything.
+  var WELCOME_KEY = 'kit.v0.welcomed';
+  function welcomed() { try { return localStorage.getItem(WELCOME_KEY) === '1'; } catch (e) { return false; } }
+  function markWelcomed(on) { try { if (on) localStorage.setItem(WELCOME_KEY, '1'); else localStorage.removeItem(WELCOME_KEY); } catch (e) {} }
+  // a small prize wheel in the app's greens that turns once as the screen opens
+  function welcomeArt() {
+    var R = 70, n = 8, seg = 360 / n, slices = '';
+    var xy = function (deg, r) { var a = deg * Math.PI / 180; return (r * Math.sin(a)).toFixed(1) + ' ' + (-r * Math.cos(a)).toFixed(1); };
+    for (var k = 0; k < n; k++) slices += '<path class="w-seg c' + (k % 4) + '" d="M0 0 L' + xy(k * seg, R) + ' A' + R + ' ' + R + ' 0 0 1 ' + xy((k + 1) * seg, R) + ' Z"/>';
+    return '<svg viewBox="-86 -94 172 180"><circle class="w-rim" r="' + (R + 7) + '"/><circle class="w-base" r="' + R + '"/><g class="welcome-wheel">' + slices + '</g>' +
+      '<circle class="d-hub" r="13"/><path class="d-pointer" d="M-9 -' + (R + 17) + ' L9 -' + (R + 17) + ' L0 -' + (R - 5) + ' Z"/></svg>';
   }
 
   // ------------------------------------------------------------ moving between screens
@@ -3173,11 +3231,13 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   }
 
   // ------------------------------------------------------------ navigation
-  var VIEWS = ['spin', 'history', 'test', 'settings', 'import'];
+  var VIEWS = ['welcome', 'spin', 'history', 'test', 'settings', 'import'];
   function show(view, sub, y) {
     ui.view = view;
     ui.sub = view === 'settings' ? sub || '' : '';
     VIEWS.forEach(function (v) { $('view-' + v).hidden = v !== view; });
+    document.body.classList.toggle('welcoming', view === 'welcome');
+    if (view === 'welcome' && !$('welcome-art').firstChild) $('welcome-art').innerHTML = welcomeArt();
     var tabs = document.querySelectorAll('.tab');
     for (var i = 0; i < tabs.length; i++) {
       var target = tabs[i].getAttribute('data-go');
@@ -3229,7 +3289,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       // Share my stats says yes/no to "added the reminder" (an iPhone that adds it from Safari can't tell the app)
       var cal = ev.target.closest ? ev.target.closest('#rem-add, #rem-ics') : null;
       if (cal && !demo && !(cal.id === 'rem-ics' && appleCalBlocked)) { E.markReminderAdded(state, Date.now()); save(); }
-      var t = ev.target.closest ? ev.target.closest('[data-go],[data-action],[data-tag],[data-rate],[data-restore],[data-verdict],[data-day],[data-install],[data-backup],[data-snooze],[data-moment],[data-moment-own],[data-applecal],[data-everyday],[data-theme-choice],[data-sub],[data-back]') : null;
+      var t = ev.target.closest ? ev.target.closest('[data-go],[data-action],[data-tag],[data-rate],[data-restore],[data-verdict],[data-day],[data-install],[data-backup],[data-snooze],[data-moment],[data-moment-own],[data-applecal],[data-everyday],[data-theme-choice],[data-sub],[data-back],[data-welcome]') : null;
       if (!t) return;
       if (t.hasAttribute('data-applecal')) {
         ev.preventDefault();
@@ -3259,6 +3319,12 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
         if (isPresetMoment(state.settings.reminder.moment)) state.settings.reminder = Object.assign({}, state.settings.reminder, { moment: '' });
         save(); renderSettings();
         if ($('rem-own')) $('rem-own').focus();
+        return;
+      }
+      if (t.hasAttribute('data-welcome')) {
+        markWelcomed(true);
+        if (t.getAttribute('data-welcome') === 'import') openDeeper('import', ''); // ← Back returns to the welcome screen
+        else show('spin', '', 0);
         return;
       }
       if (t.hasAttribute('data-sub')) { openDeeper('settings', t.getAttribute('data-sub')); return; }
@@ -3320,7 +3386,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       var r = E.spin(state, { now: Date.now(), record: false });
       if (r) { ui.pick = r; ui.mode = 'picked'; }
     }
-    render();
+    if (demo && !welcomed()) show('welcome', '', 0); else render();
   }
 
   init();

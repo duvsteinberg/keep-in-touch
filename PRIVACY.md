@@ -18,6 +18,7 @@ In your browser's storage on your device, for this app only:
 - what it learned from your taps: calls, spins, tags, hidden people
 - a log of spins, calls and tags (the most recent 20,000)
 - your settings, such as the reminder time
+- whether you've seen the welcome screen
 - the last few error messages from the app itself, if any (kept apart from the rest and from backups, for the help report)
 
 ## What leaves your device

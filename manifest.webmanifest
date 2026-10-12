@@ -2,6 +2,12 @@
   "name": "Keep in Touch",
   "short_name": "Keep in Touch",
   "description": "Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.",
+  "lang": "en",
+  "categories": [
+    "lifestyle",
+    "social",
+    "productivity"
+  ],
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -24,6 +30,36 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "assets/screenshot-1.jpg",
+      "sizes": "824x1830",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Who are you calling today? Your contacts never leave your phone."
+    },
+    {
+      "src": "assets/screenshot-2.jpg",
+      "sizes": "824x1830",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Spin, and it picks one person worth a call today"
+    },
+    {
+      "src": "assets/screenshot-3.jpg",
+      "sizes": "824x1830",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Today’s pick, and why they came up"
+    },
+    {
+      "src": "assets/screenshot-4.jpg",
+      "sizes": "824x1830",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Tell it how it went, and it learns"
     }
   ]
 }

@@ -24,6 +24,10 @@ A working prototype (v0.1.x) for a personal test, then a group of 10–12 tester
 
 **Every day:** tap **Spin**. Tap **Call**, then say whether you talked and whether you'd have called anyway. **Spin again** gives a quick new pick. Press and hold either one for a fun spin. The wiki has the full guide.
 
+## License
+
+The code is public so anyone can read it and check how the app treats their data, but it is not open source: all rights are reserved. The app itself is free to use. See [LICENSE](LICENSE).
+
 ## Privacy
 
 Your contacts and everything the app learns stay in your browser on your device. No account, no tracking, no ads, no third-party code or fonts, and the browser itself enforces that the page talks to no other site. See [PRIVACY.md](PRIVACY.md). Security issues: [SECURITY.md](SECURITY.md).
@@ -43,6 +47,7 @@ node sim/simulate.js       # simulation on fake contact books (about 3 minutes)
 node check/fixture.js && node check/page-check.js   # app check on an emulated Android phone (needs Playwright)
 KIT_PHONE=iphone node check/page-check.js           # the same on an emulated iPhone, in Safari's engine
 node check/no-personal-data.js   # no contact exports or backups in the repo
+node check/store-images.js       # remakes the link preview and install screenshots in assets/ (after the look changes)
 ```
 
 GitHub runs all of these except the simulation on every pull request, and `main` only accepts pull requests whose check is green.
