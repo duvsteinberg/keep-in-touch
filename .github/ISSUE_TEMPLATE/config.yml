@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A security problem
+    url: https://github.com/duvsteinberg/keep-in-touch/security/advisories/new
+    about: Please report it privately here, not in a public issue. See SECURITY.md.
+  - name: How to use the app
+    url: https://github.com/duvsteinberg/keep-in-touch/wiki
+    about: The guide, the FAQ and how your data stays on your phone.

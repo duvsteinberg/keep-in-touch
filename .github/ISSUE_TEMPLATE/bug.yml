@@ -1,0 +1,39 @@
+name: Something isn't working
+description: Report a problem with Keep in Touch.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting. **This page is public**, so please don't include names, phone numbers, screenshots that show contacts, or any contacts or backup file.
+
+        The quickest way to tell us everything we need: in the app, **Settings → Help and feedback → Copy report**, then paste it below. It has your phone and app version and no names or numbers.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+      placeholder: "For example: I tapped Spin again and the card stayed empty."
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Help report
+      description: Settings → Help and feedback → Copy report, then paste it here.
+      render: text
+  - type: dropdown
+    id: phone
+    attributes:
+      label: Where were you using it?
+      options:
+        - Android, installed app
+        - Android, in Chrome
+        - Android, in Samsung Internet
+        - iPhone, from the home-screen icon
+        - iPhone, in Safari
+        - A computer
+        - Somewhere else
+    validations:
+      required: true
