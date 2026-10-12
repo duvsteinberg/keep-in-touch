@@ -21,21 +21,21 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --name-size: clamp(1.75rem, 8.4vw, 2.35rem);
   --shadow: rgb(10 16 14 / 0.14);
-  --w1: #f2d49b; --w2: #bfe0cc; --w3: #f4b9a8; --w4: #c3d3f0; /* prize-wheel slices */
+  --w1: #d4eadf; --w2: #f3f6f4; --w3: #a8d2bc; --w4: #e1e8e4; /* prize-wheel slices: tints of the app's green and greys */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #0d1311; --surface: #151d1a; --ink: #e3ebe7; --muted: #95a49e; --line: #28332f; --soft: #1d2723;
     --call: #2fa877; --call-ink: #03100a; --dial: #d2ddd8; --dial-ink: #0d1311; --alert: #e3a55b; --alert-soft: #2b2117;
     --scrim: rgb(0 0 0 / 0.6); --shadow: rgb(0 0 0 / 0.45); color-scheme: dark;
-    --w1: #5b4a26; --w2: #24503a; --w3: #613328; --w4: #2d3f62;
+    --w1: #1f3b2f; --w2: #18211d; --w3: #2b5843; --w4: #1d2723;
   }
 }
 :root[data-theme="dark"] {
   --paper: #0d1311; --surface: #151d1a; --ink: #e3ebe7; --muted: #95a49e; --line: #28332f; --soft: #1d2723;
   --call: #2fa877; --call-ink: #03100a; --dial: #d2ddd8; --dial-ink: #0d1311; --alert: #e3a55b; --alert-soft: #2b2117;
   --scrim: rgb(0 0 0 / 0.6); --shadow: rgb(0 0 0 / 0.45); color-scheme: dark;
-  --w1: #5b4a26; --w2: #24503a; --w3: #613328; --w4: #2d3f62;
+  --w1: #1f3b2f; --w2: #18211d; --w3: #2b5843; --w4: #1d2723;
 }
 [hidden] { display: none !important; }
 html, body { height: 100%; }
@@ -170,9 +170,6 @@ button, input { font: inherit; color: inherit; }
 .kpi { display: grid; gap: 6px; }
 .kpi-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .kpi-num { font-family: var(--font-display); font-weight: 600; font-size: 3.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
-.kpi-of { color: var(--muted); }
-.meter { height: 8px; border-radius: 99px; background: var(--soft); overflow: hidden; }
-.meter i { display: block; height: 100%; border-radius: 99px; background: var(--call); }
 .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .tile { background: var(--paper); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; align-content: start; min-width: 0; }
 .tile b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
@@ -306,10 +303,10 @@ button, input { font: inherit; color: inherit; }
       <div id="history-body"></div>
     </section>
 
-    <!-- TWO-WEEK TEST (opened from Settings) -->
-    <section id="view-test" class="stack" hidden aria-label="Two-week test">
+    <!-- YOUR TEST: the four-week tester round (opened from Settings) -->
+    <section id="view-test" class="stack" hidden aria-label="Your test">
       <button class="back" type="button" data-go="settings">← Settings</button>
-      <h2 class="view-title">Two-week test</h2>
+      <h2 class="view-title">Your test</h2>
       <p class="sub" id="test-sub"></p>
       <div id="test-body" class="stack"></div>
     </section>
@@ -355,7 +352,7 @@ button, input { font: inherit; color: inherit; }
   'use strict';
   var E = window.KITEngine;
   var V = window.KITVcard;
-  var APP_VERSION = '0.1.4';
+  var APP_VERSION = '0.1.5';
   var DAY = 86400000;
   var STORE_KEY = 'kit.v0.state'; // unchanged from v0 so existing progress carries over
   var reduced = false;
@@ -681,7 +678,7 @@ button, input { font: inherit; color: inherit; }
   // ------------------------------------------------------------ the spin flow
   function currentPerson() { return ui.pick ? state.people[ui.pick.id] : null; }
 
-  // kind: 'full' (the big Spin), 'quick' (Spin again) or 'fun' (Fun spin). A fun spin only changes the animation;
+  // kind: 'full' (the big Spin), 'quick' (Spin again: the same style, sped up) or 'fun' (Fun spin). A fun spin only changes the animation;
   // the engine picks exactly as always and marks the spin so the stats can count it.
   function spinNow(kind) {
     if (toastUndo) { toastUndo = null; $('toast').hidden = true; } // an undo can't reach back past a new spin
@@ -715,19 +712,23 @@ button, input { font: inherit; color: inherit; }
   // Every spin plays on a layer over the card. The card underneath is already laid out as it will land,
   // so when the layer fades away nothing moves. Every style lands on the same name line as the reel.
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
-  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  // Every spin's timing goes through wait, frames and play. pace < 1 plays the same style faster: Spin again plays
+  // your everyday spin at QUICK_PACE, so skipping someone stays under a second whichever style you chose.
+  var pace = 1, QUICK_PACE = 0.3;
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms * pace); }); }
   function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
   function rand(n) { return Math.floor(Math.random() * n); }
   function frames(duration, fn) {
     return new Promise(function (resolve) {
-      var t0 = performance.now();
-      var step = function (now) { var t = Math.min(1, (now - t0) / duration); fn(t, now - t0); if (t < 1) requestAnimationFrame(step); else resolve(); };
+      var t0 = performance.now(), d = duration * pace;
+      var step = function (now) { var t = Math.min(1, (now - t0) / d); fn(t, (now - t0) / pace); if (t < 1) requestAnimationFrame(step); else resolve(); };
       requestAnimationFrame(step);
     });
   }
   function play(node, keyframes, opts) {
+    if (pace !== 1) opts = Object.assign({}, opts, { duration: opts.duration * pace, delay: (opts.delay || 0) * pace });
     var a = node.animate(keyframes, opts);
-    return a.finished ? a.finished.catch(function () {}) : wait(opts.duration);
+    return a.finished ? a.finished.catch(function () {}) : new Promise(function (r) { setTimeout(r, opts.duration); });
   }
   function initials(name) { var w = String(name).trim().split(/\s+/); return (w[0].charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : '')).toUpperCase(); }
 
@@ -866,7 +867,7 @@ button, input { font: inherit; color: inherit; }
         var ms = performance.now() - t0, open = 0;
         tiles.forEach(function (t, i) {
           if (/\s/.test(target[i]) || t.classList.contains('set')) return;
-          if (ms >= lockAt[i]) { t.textContent = target[i]; t.classList.add('set'); return; }
+          if (ms >= lockAt[i] * pace) { t.textContent = target[i]; t.classList.add('set'); return; }
           open++;
           t.textContent = letters.charAt(rand(letters.length));
           t.classList.remove('flap'); void t.offsetWidth; t.classList.add('flap');
@@ -897,8 +898,8 @@ button, input { font: inherit; color: inherit; }
         (function hop() {
           spots.forEach(function (s) { s.classList.remove('lit'); });
           spots[order[k]].classList.add('lit');
-          if (k === order.length - 1) { setTimeout(resolve, 380); return; }
-          setTimeout(hop, delays[k]); k++;
+          if (k === order.length - 1) { setTimeout(resolve, 380 * pace); return; }
+          setTimeout(hop, delays[k] * pace); k++;
         })();
       }).then(function () { fx.classList.add('out'); spots[pick].classList.remove('lit'); return flyToName(fx, spots[pick], g, 260); })
         .then(function () { return wait(100); });
@@ -1065,9 +1066,10 @@ button, input { font: inherit; color: inherit; }
     return play(t, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' });
   }
 
-  // Every style. Tapping Spin plays your everyday spin (Settings); holding plays one of the others.
+  // Every style. Spin and Spin again play your everyday spin (Settings; the prize wheel unless you choose another),
+  // Spin again sped up; holding plays one of the others.
   var SPIN_STYLES = [['reel', 'Reel'], ['orbit', 'Orbit'], ['deal', 'Deal'], ['board', 'Board'], ['spotlight', 'Spotlight'], ['classic', 'Classic dial'], ['phone', 'Telephone'], ['tuner', 'Tuner'], ['wheel', 'Prize wheel']];
-  function everydayStyle() { var e = state.settings.everyday; return SPIN_STYLES.some(function (x) { return x[0] === e; }) ? e : 'reel'; }
+  function everydayStyle() { var e = state.settings.everyday; return SPIN_STYLES.some(function (x) { return x[0] === e; }) ? e : 'wheel'; }
   function runStyle(style, fx, g) { return style === 'reel' ? reelSpin(fx, g, false) : FUN[style](fx, g); }
   // Fun spin shows each of the other styles once, in a new order, before any repeats, and never the same twice in a row.
   var funBag = [], lastFun = '', funBagFor = '';
@@ -1104,14 +1106,17 @@ button, input { font: inherit; color: inherit; }
     fx.setAttribute('aria-hidden', 'true');
     card.appendChild(fx);
     var g = spinGeom(fx);
-    var style = kind === 'fun' ? nextFunStyle() : kind === 'full' ? everydayStyle() : 'reel';
+    var style = kind === 'fun' ? nextFunStyle() : everydayStyle();
     fx.setAttribute('data-spin', kind === 'quick' ? 'quick' : kind === 'full' && style === 'reel' ? 'full' : style);
+    fx.setAttribute('data-style', style);
+    pace = kind === 'quick' && style !== 'reel' ? QUICK_PACE : 1; // the reel has its own quick version
     var run;
-    try { run = kind === 'quick' ? reelSpin(fx, g, true) : runStyle(style, fx, g); } catch (e) { run = Promise.resolve(); }
+    try { run = kind === 'quick' && style === 'reel' ? reelSpin(fx, g, true) : runStyle(style, fx, g); } catch (e) { run = Promise.resolve(); }
     var done = false;
     var finish = function () {
       if (done) return;
       done = true;
+      pace = 1;
       ui.spinning = false;
       render();
       play(fx, [{ opacity: 1 }, { opacity: 0 }], { duration: 140, fill: 'forwards' }).then(function () { fx.remove(); });
@@ -1349,45 +1354,45 @@ button, input { font: inherit; color: inherit; }
     return Math.round((new Date(now).setHours(0, 0, 0, 0) - new Date(start).setHours(0, 0, 0, 0)) / DAY) + 1;
   }
   function summaryText(now) { return E.shareableText(state, now, APP_VERSION); }
-  function weekCell(w, f) { return w ? f(w) : '<span class="fine">not yet</span>'; }
+  var TEST_DAYS = 28; // the tester round runs four weeks
   function renderTest() {
     var now = Date.now();
-    var s = E.stats(state, { now: now, days: 14 });
-    var all = E.stats(state, { now: now, days: 0 });
+    var s = E.stats(state, { now: now, days: 0 }); // the whole test so far
     var start = E.testStart(state);
-    var tr = E.trend(state, now);
+    var weeks = E.weekly(state, now);
     var day = testDay(now);
     $('test-sub').textContent = start
-      ? (day <= 14 ? 'Day ' + day + ' of 14. ' : 'The two weeks are up. ') + 'Started ' + fmtShort(start) + ', checkpoint on ' + fmtShort(start + 14 * DAY) + '.'
-      : 'Your first spin starts the two weeks.';
-    var target = 5;
-    var pct = Math.min(100, Math.round((s.wouldNotHave / target) * 100));
+      ? (day <= TEST_DAYS ? 'Day ' + day + ' of ' + TEST_DAYS + '. ' : 'The four weeks are up. ') + 'Started ' + fmtShort(start) + ', checkpoint on ' + fmtShort(start + TEST_DAYS * DAY) + '.'
+      : 'Your first spin starts the four weeks.';
     var html = '';
-    html += '<div class="panel kpi"><div class="kpi-top"><span class="kpi-num">' + s.wouldNotHave + '</span><span class="kpi-of">of 5 suggested</span></div>' +
-      '<div class="kpi-label"><b>Calls you wouldn’t have made otherwise</b></div><div class="meter" aria-hidden="true"><i style="width:' + pct + '%"></i></div>' +
+    html += '<div class="panel kpi"><div class="kpi-top"><span class="kpi-num">' + s.wouldNotHave + '</span></div>' +
+      '<div class="kpi-label"><b>Calls you wouldn’t have made otherwise</b></div>' +
       '<p class="fine">Counted when you answer “No” to “Would you have called them today without this?” ' + plural(s.wouldNotTalked, 'became a conversation', 'became conversations') + '.</p></div>';
     html += '<div class="tiles">' +
-      tile(s.activeDays + ' <span>of 14</span>', 'Days you spun') +
+      tile(s.activeDays + ' <span>of ' + day + '</span>', 'Days you spun') +
       tile(s.callDays + ' <span>of ' + s.activeDays + '</span>', 'Days that led to a call') +
       tile(s.firstThreeDays + ' <span>of ' + s.activeDays + '</span>', 'Days a call came from the first three spins') +
       tile(s.calls, 'Calls') +
       tile(s.talked, 'Conversations') +
       tile(s.spinsPerCall === null ? '–' : s.spinsPerCall, 'Spins per call') +
       '</div>';
-    html += '<div class="panel"><h3>Is it getting better?</h3><div class="table-wrap"><table class="trend"><thead><tr><th></th><th>Week 1</th><th>Week 2</th></tr></thead><tbody>' +
-      '<tr><th>Days that led to a call</th><td>' + weekCell(tr && tr.week1, function (w) { return w.callDays + ' of ' + w.activeDays; }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return w.callDays + ' of ' + w.activeDays; }) + '</td></tr>' +
-      '<tr><th>A call from the first three spins</th><td>' + weekCell(tr && tr.week1, function (w) { return plural(w.firstThreeDays, 'day'); }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return plural(w.firstThreeDays, 'day'); }) + '</td></tr>' +
-      '<tr><th>Spins per call</th><td>' + weekCell(tr && tr.week1, function (w) { return w.spinsPerCall === null ? '–' : w.spinsPerCall; }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return w.spinsPerCall === null ? '–' : w.spinsPerCall; }) + '</td></tr>' +
-      '<tr><th>Calls you wouldn’t have made</th><td>' + weekCell(tr && tr.week1, function (w) { return w.wouldNotHave; }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return w.wouldNotHave; }) + '</td></tr>' +
-      '</tbody></table></div><p class="fine">If it’s learning, week 2 should need fewer spins per call.</p></div>';
+    var row = function (label, f) { return '<tr><th>' + label + '</th>' + weeks.map(function (w) { return '<td>' + f(w) + '</td>'; }).join('') + '</tr>'; };
+    html += '<div class="panel"><h3>Is it getting better?</h3>' + (weeks.length
+      ? '<div class="table-wrap"><table class="trend"><thead><tr><th></th>' + weeks.map(function (w) { return '<th>Week ' + w.week + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        row('Days you spun', function (w) { return w.activeDays; }) +
+        row('Days that led to a call', function (w) { return w.callDays; }) +
+        row('A call from the first three spins', function (w) { return plural(w.firstThreeDays, 'day'); }) +
+        row('Spins per call', function (w) { return w.spinsPerCall === null ? '–' : w.spinsPerCall; }) +
+        row('Calls you wouldn’t have made', function (w) { return w.wouldNotHave; }) +
+        '</tbody></table></div>'
+      : '') + '<p class="fine">Week by week from your first spin. If it’s learning, later weeks should need fewer spins per call.</p></div>';
     var v = E.latestVerdict(state);
     html += '<div class="panel"><h3>Would you spin again tomorrow?</h3><div class="seg" role="group" aria-label="Would you spin again tomorrow?">' +
       ['yes', 'unsure', 'no'].map(function (k) { return '<button type="button" data-verdict="' + k + '" aria-pressed="' + (v === k ? 'true' : 'false') + '">' + VERDICT[k] + '</button>'; }).join('') +
       '</div><p class="fine">The engine’s pass mark from the blueprint: picks good enough that you’d spin again tomorrow. Answer any time; the latest answer counts.</p></div>';
-    html += '<div class="panel"><h3>The bar for this checkpoint</h3><p class="fine">Suggested: on most days a call comes from the first three spins, at least five calls you wouldn’t have made otherwise, and you’d still spin on day 14. Set your own if you prefer.</p></div>';
     html += '<div class="panel"><h3>Since you started</h3><ul class="facts">' +
-      fact('Spins', all.spins) + fact('Calls', all.calls) + fact('Conversations', all.talked) + fact('Calls you wouldn’t have made', all.wouldNotHave) +
-      fact('Tried someone new', all.explorationSpins) + fact('Calls to someone new', all.explorationCalls) + fact('Different people called', all.peopleCalled) + '</ul></div>';
+      fact('Spins', s.spins) + fact('Calls', s.calls) + fact('Conversations', s.talked) + fact('Calls you wouldn’t have made', s.wouldNotHave) +
+      fact('Tried someone new', s.explorationSpins) + fact('Calls to someone new', s.explorationCalls) + fact('Different people called', s.peopleCalled) + '</ul></div>';
     html += '<div class="panel"><h3>Share my stats</h3><p class="fine">For testers. Counts only: no names, numbers or label names.</p>' +
       '<div class="btn-row"><button class="btn btn-ink" type="button" id="share-copy">Copy summary</button><button class="btn" type="button" id="share-file">Save as a file</button></div>' +
       '<p class="fine share-text" id="share-text"></p></div>';
@@ -1416,12 +1421,12 @@ button, input { font: inherit; color: inherit; }
     var rate = state.settings && typeof state.settings.exploration === 'number' ? state.settings.exploration : E.PARAMS.exploration;
     var rem = state.settings.reminder || { time: '20:00', days: [0, 1, 2, 3, 4] };
     var now = Date.now();
-    var s14 = E.stats(state, { now: now, days: 14 });
+    var sAll = E.stats(state, { now: now, days: 0 });
     var day = testDay(now);
     var html = '';
 
-    html += '<div class="panel"><h3>Two-week test</h3><p class="fine">' +
-      (day ? (day <= 14 ? 'Day ' + day + ' of 14' : 'The two weeks are up') + ' · ' + plural(s14.wouldNotHave, 'call', 'calls') + ' you wouldn’t have made otherwise.' : 'Starts with your first spin.') +
+    html += '<div class="panel"><h3>Your test</h3><p class="fine">' +
+      (day ? (day <= TEST_DAYS ? 'Day ' + day + ' of ' + TEST_DAYS : 'The four weeks are up') + ' · ' + plural(sAll.wouldNotHave, 'call', 'calls') + ' you wouldn’t have made otherwise.' : 'Starts with your first spin.') +
       '</p><button class="btn" type="button" data-go="test">Open the checkpoint</button></div>';
 
     if (hosted || standalone) {
@@ -1486,7 +1491,7 @@ button, input { font: inherit; color: inherit; }
     html += '</div>';
 
     var mine = everydayStyle();
-    html += '<div class="panel"><h3>Your spin</h3><p class="fine">Tapping Spin plays your everyday spin. Press and hold Spin or Spin again for a fun spin: one of the others, a different one each time.</p>' +
+    html += '<div class="panel"><h3>Your spin</h3><p class="fine">Spin plays your everyday spin, and Spin again plays it quickly. Press and hold Spin or Spin again for a fun spin: one of the others, a different one each time.</p>' +
       '<div class="chips" role="radiogroup" aria-label="Everyday spin">' + SPIN_STYLES.map(function (x) {
         return '<button class="chip" type="button" role="radio" data-everyday="' + x[0] + '" aria-checked="' + (x[0] === mine) + '" aria-pressed="' + (x[0] === mine) + '">' + x[1] + '</button>';
       }).join('') + '</div></div>';

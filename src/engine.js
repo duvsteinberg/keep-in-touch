@@ -15,7 +15,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = '0.1.8';
+  const VERSION = '0.1.9';
   const SCHEMA = 2; // 2: compact saving (source data only; the rest is recomputed on load)
   const DAY = 86400000;
   const HOUR = 3600000;
@@ -392,7 +392,7 @@
 
   function defaultSettings() {
     // reminder days use JavaScript numbering: 0 = Sunday ... 6 = Saturday. Default Sunday to Thursday.
-    return { exploration: PARAMS.exploration, reminder: { time: '20:00', days: [0, 1, 2, 3, 4] }, lastBackupAt: 0, reminderAddedAt: 0, everyday: 'reel' };
+    return { exploration: PARAMS.exploration, reminder: { time: '20:00', days: [0, 1, 2, 3, 4] }, lastBackupAt: 0, reminderAddedAt: 0, everyday: 'wheel' };
   }
 
   function createState(now) {
@@ -705,7 +705,7 @@
     return Object.assign({ days }, statsBetween(state, days ? now - days * DAY : 0, now));
   }
 
-  /** The first spin: the start of the two-week test. 0 if nothing yet. */
+  /** The first spin: the start of the test. 0 if nothing yet. */
   function testStart(state) {
     for (const e of state.events) if (e.k === 'show') return e.t;
     return 0;
@@ -716,7 +716,7 @@
     const from = start + i * 7 * DAY;
     if (from > t) return null;
     const s = statsBetween(state, from, Math.min(t, from + 7 * DAY - 1));
-    return { activeDays: s.activeDays, callDays: s.callDays, firstThreeDays: s.firstThreeDays, spins: s.spins, calls: s.calls, spinsPerCall: s.spinsPerCall, wouldNotHave: s.wouldNotHave };
+    return { activeDays: s.activeDays, callDays: s.callDays, firstThreeDays: s.firstThreeDays, spins: s.spins, calls: s.calls, spinsPerCall: s.spinsPerCall, wouldNotHave: s.wouldNotHave, funSpins: s.funSpins };
   }
 
   /** Week 1 against week 2 of the test: is it getting better? */
@@ -892,7 +892,7 @@
       // yes/no only: did they tap "Add to calendar" on this device (an iPhone that added it from Safari shows no)
       reminderAdded: !!(state.settings && state.settings.reminderAddedAt),
       // which spin they chose for every day (Settings): a style name, nothing personal
-      everydaySpin: (state.settings && state.settings.everyday) || 'reel',
+      everydaySpin: (state.settings && state.settings.everyday) || 'wheel',
     };
   }
 
@@ -911,8 +911,8 @@
     out.push('Someone new to try: ' + plural(sh.allTime.explorationSpins, 'spin') + ', ' + plural(sh.allTime.explorationCalls, 'call'));
     out.push('Everyday spin: ' + sh.everydaySpin + ' · fun spins: ' + sh.allTime.funSpins + ', calls from them: ' + sh.allTime.funCalls);
     if (sh.allTime.secondsToCall !== null) out.push('Seconds from first spin to Call (median): ' + sh.allTime.secondsToCall);
-    out.push('By week (days used · calls · wouldn’t have happened): ' +
-      sh.weeks.map((w) => 'w' + w.week + ' ' + w.activeDays + '·' + w.calls + '·' + w.wouldNotHave).join(' | '));
+    out.push('By week (days used · calls · wouldn’t have happened · fun spins): ' +
+      sh.weeks.map((w) => 'w' + w.week + ' ' + w.activeDays + '·' + w.calls + '·' + w.wouldNotHave + '·' + w.funSpins).join(' | '));
     out.push('Reminder added to a calendar: ' + (sh.reminderAdded ? 'yes' : 'no'));
     out.push('Contacts: ' + sh.contactBook + ', can come up: ' + sh.canComeUp);
     out.push('By day-one signal (people · shown · called · spun again · business · don’t suggest · friend or family):');

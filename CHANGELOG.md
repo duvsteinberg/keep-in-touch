@@ -2,6 +2,13 @@
 
 What changed in each version of Keep in Touch, newest first. Releases: https://github.com/duvsteinberg/keep-in-touch/releases
 
+## v0.1.5 · 2026-10-12
+
+- **The prize wheel is the everyday spin** for new users, in the app's own greens and greys (light and dark). Anyone can still choose another in Settings → Your spin.
+- **Spin again plays your everyday spin,** sped up to under a second, whichever style you chose (it used to be a quick reel for everyone).
+- **Your test** (Settings) runs four weeks: day 1 of 28, week by week, with no suggested target on screen.
+- **Engine 0.1.9:** Share my stats counts fun spins week by week; the prize wheel is the default. Picks are unchanged.
+
 ## v0.1.4 · 2026-10-12
 
 - **Your spin (Settings):** choose your everyday spin from nine styles: reel, orbit, deal, departure board, spotlight, classic dial, telephone, tuner and prize wheel. The big Spin plays it every time. Share my stats names the one you chose.

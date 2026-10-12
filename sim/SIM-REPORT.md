@@ -1,6 +1,6 @@
 # Keep in Touch v0: simulation report
 
-> Generated 2026-10-12 by `sim/simulate.js` (engine 0.1.8, 100 random seeds per row, 28 days, 105 s). Day-one figures carry about ±6 points of noise.
+> Generated 2026-10-12 by `sim/simulate.js` (engine 0.1.9, 100 random seeds per row, 28 days, 105 s). Day-one figures carry about ±6 points of noise.
 > Blueprint Phase 1: does the engine turn a messy contact book into reasonable picks from day one, and does it improve with use?
 
 ## How to read this
