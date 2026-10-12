@@ -1,0 +1,21 @@
+Keep in Touch
+Copyright (c) 2026 duvsteinberg (https://github.com/duvsteinberg). All rights reserved.
+
+The source code in this repository is public so that anyone can read it and check
+for themselves how the app treats their data. Being public does not make it open
+source: no license is granted to copy, modify, distribute, sell or reuse this code
+or the app's design, in whole or in part, except as follows:
+
+- Anyone may use the app at https://duvsteinberg.github.io/keep-in-touch/ for free.
+- Anyone may read the code and run its checks, to review how it works.
+- GitHub's Terms of Service let GitHub users view and fork this repository on
+  GitHub. That permission covers only viewing and forking on GitHub; it is not a
+  license to use, change or publish the code elsewhere.
+- Pull requests are welcome; by opening one you agree that your contribution may be
+  included in Keep in Touch under these terms.
+
+For any other use, ask first by opening an issue in this repository.
+
+THE APP AND THE CODE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY ARISING FROM THE USE OF THE APP OR THE CODE.

@@ -45,9 +45,25 @@ body.replace(/<script>([\s\S]*?)<\/script>/g, (all, code) => { scriptHashes.push
 if (scriptHashes.length !== 3) throw new Error('expected 3 inline scripts, found ' + scriptHashes.length);
 const csp = "default-src 'none'; script-src " + scriptHashes.join(' ') + "; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
   "manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'";
+// The link preview when someone shares the address (WhatsApp, email, messages): these tags and assets/og-image.jpg,
+// which check/store-images.js makes. Link previews need the full address of the image.
+const SITE = 'https://duvsteinberg.github.io/keep-in-touch/';
+const SUMMARY = 'Spin, and it picks one person from your contacts worth a call today. Everything stays on your phone.';
+const preview =
+  '<meta property="og:type" content="website">\n' +
+  '<meta property="og:site_name" content="Keep in Touch">\n' +
+  '<meta property="og:title" content="Keep in Touch: who are you calling today?">\n' +
+  '<meta property="og:description" content="' + SUMMARY + '">\n' +
+  '<meta property="og:url" content="' + SITE + '">\n' +
+  '<meta property="og:image" content="' + SITE + 'assets/og-image.jpg">\n' +
+  '<meta property="og:image:type" content="image/jpeg">\n' +
+  '<meta property="og:image:width" content="1200">\n' +
+  '<meta property="og:image:height" content="630">\n' +
+  '<meta property="og:image:alt" content="Keep in Touch on a phone, showing today\'s pick from example contacts">\n' +
+  '<meta name="twitter:card" content="summary_large_image">\n';
 const webHead =
   '<meta http-equiv="Content-Security-Policy" content="' + csp + '">\n' +
-  '<meta name="description" content="Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.">\n' +
+  '<meta name="description" content="' + SUMMARY + '">\n' + preview +
   '<meta name="theme-color" content="#edf1ee" media="(prefers-color-scheme: light)">\n' +
   '<meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">\n' +
   '<link rel="manifest" href="manifest.webmanifest">\n' +
@@ -61,6 +77,8 @@ write('manifest.webmanifest', JSON.stringify({
   name: 'Keep in Touch',
   short_name: 'Keep in Touch',
   description: 'Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.',
+  lang: 'en',
+  categories: ['lifestyle', 'social', 'productivity'],
   start_url: './',
   scope: './',
   display: 'standalone',
@@ -72,6 +90,13 @@ write('manifest.webmanifest', JSON.stringify({
     { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
     { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
   ],
+  // Android shows these in a richer install sheet, like an app store (made by check/store-images.js, same order)
+  screenshots: [
+    'Who are you calling today? Your contacts never leave your phone.',
+    'Spin, and it picks one person worth a call today',
+    'Today\u2019s pick, and why they came up',
+    'Tell it how it went, and it learns',
+  ].map((label, i) => ({ src: 'assets/screenshot-' + (i + 1) + '.jpg', sizes: '824x1830', type: 'image/jpeg', form_factor: 'narrow', label })),
 }, null, 2) + '\n');
 
 // 4. the offline service worker; its cache name changes whenever the app changes, which triggers an update

@@ -2,6 +2,15 @@
 
 What changed in each version of Keep in Touch, newest first. Releases: https://github.com/duvsteinberg/keep-in-touch/releases
 
+## v0.1.8 · 2026-10-13
+
+- **A welcome screen on the first open:** what the app does in one sentence, the promise that your contacts never leave your phone, and one clear first step: **Bring in my contacts**, or **Try it with example contacts**. A small prize wheel turns as it opens. It shows once on a phone (and again after Erase everything).
+- **A link preview:** sharing the app's address (on WhatsApp, by email…) now shows a picture of the app, its name and what it does, instead of a bare link.
+- **Android's install sheet shows four screenshots** of the app, like an app store.
+- The "example contacts" note no longer shows on the Bring in your contacts screen.
+- **License:** the code is public so anyone can check how the app treats their data, but all rights are reserved (see LICENSE). The app itself is free to use.
+- The engine is unchanged (0.1.9).
+
 ## v0.1.7 · 2026-10-13
 
 - **A new Settings page.** One short overview, like your phone's own Settings app: each row names a setting and shows its current value (for example "Daily reminder: 8:00 p.m. · Sun–Thu"), grouped by task (Every day · Contacts and backup · App), and each row opens its own page. Start over sits alone at the bottom, and the version is small print below it. It used to be ten boxes on one long page.
