@@ -1,0 +1,51 @@
+# Runs on every pull request and on main. A green check means: no personal-data files,
+# the built app matches its source, the engine tests pass, and the app works on an emulated Android phone and iPhone.
+name: Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Outside actions are pinned to an exact commit, so a hijacked release tag can't change what runs here.
+# To update one, look up the new release's commit and replace both the hash and the version note.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: No contact exports or backups in the repo
+        run: node check/no-personal-data.js
+
+      - name: Built files match the source
+        run: |
+          node build.js
+          if ! git diff --quiet -- index.html manifest.webmanifest sw.js; then
+            git diff --stat -- index.html manifest.webmanifest sw.js
+            echo "::error::index.html, manifest.webmanifest or sw.js is out of date. Run node build.js and commit the result."
+            exit 1
+          fi
+
+      - name: Engine tests
+        run: node --test test/test.js
+
+      - name: App check on an emulated Android phone
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+          node check/fixture.js
+          node check/page-check.js
+
+      - name: App check on an emulated iPhone (Safari's engine)
+        run: |
+          npx playwright install --with-deps webkit
+          KIT_PHONE=iphone node check/page-check.js

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Keep in Touch app icon: a rotary dial. Content stays inside the maskable safe zone (radius 204). -->
+  <rect width="512" height="512" fill="#13704e"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#ffffff" stroke-width="16"/>
+  <g fill="none" stroke="#ffffff" stroke-width="8">
+    <circle cx="308" cy="165.9" r="22"/>
+    <circle cx="256" cy="152" r="22"/>
+    <circle cx="204" cy="165.9" r="22"/>
+    <circle cx="165.9" cy="204" r="22"/>
+    <circle cx="152" cy="256" r="22"/>
+    <circle cx="165.9" cy="308" r="22"/>
+    <circle cx="204" cy="346.1" r="22"/>
+    <circle cx="256" cy="360" r="22"/>
+    <circle cx="308" cy="346.1" r="22"/>
+    <circle cx="346.1" cy="308" r="22"/>
+  </g>
+  <line x1="372" y1="281" x2="398" y2="287" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="42" fill="#ffffff"/>
+</svg>

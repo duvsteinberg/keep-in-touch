@@ -1,0 +1,11 @@
+dist/
+check/shots/
+keep-in-touch.html
+node_modules/
+
+# Personal data never goes in this public repo: contact exports and app backups.
+# check/no-personal-data.js enforces the same on every pull request.
+*.vcf
+*.csv
+*.json
+sim/TUNING-EXTRA.md

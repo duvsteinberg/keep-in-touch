@@ -1,0 +1,3049 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-mv8QHImZeOwmf5pSu0KZMAhT9IXDd5z791DFLFren38=' 'sha256-aPP4JivLkKaVhQRhZ/9W4NBZnnAUIGOiKAss1V5PFCw='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="description" content="Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.">
+<meta name="theme-color" content="#edf1ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Keep in Touch</title>
+<style>
+/* Layout: a one-handed phone utility. A round Spin button up top, the person in a card below, tabs at the thumb.
+   Fonts are the device's own on purpose: the app downloads nothing but its own code. */
+:root {
+  --paper: #edf1ee;
+  --surface: #ffffff;
+  --ink: #15211c;
+  --muted: #5a6963;
+  --line: #d3dcd7;
+  --soft: #e1e8e4;
+  --call: #13704e;
+  --call-ink: #ffffff;
+  --dial: #1c2924;
+  --dial-ink: #f1f5f3;
+  --alert: #85470d;
+  --alert-soft: #f5e9da;
+  --scrim: rgb(10 16 14 / 0.5);
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --name-size: clamp(1.75rem, 8.4vw, 2.35rem);
+  --shadow: rgb(10 16 14 / 0.14);
+  --w1: #f2d49b; --w2: #bfe0cc; --w3: #f4b9a8; --w4: #c3d3f0; /* prize-wheel slices */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0d1311; --surface: #151d1a; --ink: #e3ebe7; --muted: #95a49e; --line: #28332f; --soft: #1d2723;
+    --call: #2fa877; --call-ink: #03100a; --dial: #d2ddd8; --dial-ink: #0d1311; --alert: #e3a55b; --alert-soft: #2b2117;
+    --scrim: rgb(0 0 0 / 0.6); --shadow: rgb(0 0 0 / 0.45); color-scheme: dark;
+    --w1: #5b4a26; --w2: #24503a; --w3: #613328; --w4: #2d3f62;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0d1311; --surface: #151d1a; --ink: #e3ebe7; --muted: #95a49e; --line: #28332f; --soft: #1d2723;
+  --call: #2fa877; --call-ink: #03100a; --dial: #d2ddd8; --dial-ink: #0d1311; --alert: #e3a55b; --alert-soft: #2b2117;
+  --scrim: rgb(0 0 0 / 0.6); --shadow: rgb(0 0 0 / 0.45); color-scheme: dark;
+  --w1: #5b4a26; --w2: #24503a; --w3: #613328; --w4: #2d3f62;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.45 var(--font-ui); -webkit-text-size-adjust: 100%; }
+button, input { font: inherit; color: inherit; }
+
+.app { max-width: 460px; margin: 0 auto; min-height: 100%; box-sizing: border-box; padding-inline: 16px; padding-block: 0 calc(76px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px 0; }
+.wordmark { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; letter-spacing: 0.005em; margin: 0; }
+.motto { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.06em; }
+
+.banner { display: flex; gap: 8px 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--soft); border-radius: 12px; padding: 10px 12px; font-size: 0.9rem; }
+.banner p { margin: 0; min-width: 0; flex: 1 1 200px; }
+.banner.alert { background: var(--alert-soft); color: var(--alert); }
+
+/* the spin button */
+.dial-wrap { display: grid; justify-items: center; gap: 4px; padding-block: 4px 0; }
+.dial { width: min(34vw, 128px); aspect-ratio: 1; max-width: 100%; margin: 9px; border: 0; padding: 0; border-radius: 50%; background: var(--dial); color: var(--dial-ink); box-shadow: 0 0 0 9px var(--soft); font-weight: 650; font-size: 1.05rem; letter-spacing: 0.03em; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 120ms ease; }
+.dial:active { transform: scale(0.96); }
+.dial:focus-visible { outline: 3px solid var(--call); outline-offset: 12px; }
+.dial[aria-disabled="true"] { opacity: 0.4; cursor: default; }
+/* tap to spin, press and hold for a fun spin */
+.dial, [data-action="reroll"], [data-action="spin"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.dial.holding { box-shadow: 0 0 0 9px var(--call); transition: box-shadow 450ms linear, transform 120ms ease; }
+.btn.holding { background: var(--soft); transition: background 450ms linear; }
+.hint { color: var(--muted); margin: 4px 0 0; text-align: center; }
+.saved { margin: 0; color: var(--muted); font-size: 0.8rem; text-align: center; font-variant-numeric: tabular-nums; }
+.saved.bad { color: var(--alert); font-weight: 600; }
+
+/* the person */
+.card { scroll-margin-top: calc(12px + env(safe-area-inset-top, 0px)); position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px 18px; display: grid; gap: 12px; }
+.eyebrow { margin: 0; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.name { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: clamp(1.75rem, 8.4vw, 2.35rem); line-height: 1.08; text-wrap: balance; overflow-wrap: anywhere; min-width: 0; }
+.number-row { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.num-label { color: var(--muted); font-size: 0.85rem; }
+.number { font-variant-numeric: tabular-nums; font-size: 1.05rem; letter-spacing: 0.01em; user-select: all; -webkit-user-select: all; }
+.why { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.nudge { margin: 0; color: var(--call); font-size: 0.9rem; }
+.actions { display: grid; gap: 10px; }
+.ask { margin: 0; font-weight: 600; }
+.row2, .row3 { display: grid; gap: 8px; }
+.row2 { grid-template-columns: 1fr 1fr; }
+.row3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 600; font-size: 0.98rem; text-decoration: none; cursor: pointer; text-align: center; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: 0.45; cursor: default; }
+.btn-call { min-height: 56px; background: var(--call); border-color: var(--call); color: var(--call-ink); font-size: 1.12rem; letter-spacing: 0.01em; }
+.btn-ink { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.btn-small { min-height: 34px; padding: 0 12px; font-size: 0.86rem; font-weight: 600; }
+.btn-quiet { border-color: transparent; background: none; color: var(--muted); }
+.btn:focus-visible, .chip:focus-visible, .tab:focus-visible, .seg button:focus-visible, .days button:focus-visible, .back:focus-visible, .file-btn:focus-within { outline: 3px solid var(--call); outline-offset: 2px; }
+.row3 .btn { padding: 0 8px; font-size: 0.9rem; }
+
+.tags { display: grid; gap: 8px; padding-top: 2px; }
+.tags-label { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 0.86rem; font-weight: 500; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+/* every spin plays on a layer over the card; the card underneath is already laid out as it will land */
+.card.spinning > :not(.fx) { visibility: hidden; }
+.fx { position: absolute; inset: 0; z-index: 2; border-radius: 17px; background: var(--surface); overflow: hidden; }
+.fx .eyebrow { position: absolute; left: 18px; top: 16px; }
+.fx-mask { position: absolute; inset: 0; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent); }
+/* the everyday reel */
+.reel-strip { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
+.reel-row { padding-inline: 18px; font-family: var(--font-display); font-weight: 600; font-size: var(--name-size); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 170ms ease, color 170ms ease; }
+.reel-row.alt { opacity: 0.55; }
+.reel-row.chosen { color: var(--ink); opacity: 1; }
+.fx.landed .reel-row:not(.chosen) { opacity: 0; }
+/* fun spins */
+.fly { position: absolute; margin: 0; white-space: nowrap; font-family: var(--font-display); font-weight: 600; font-size: var(--name-size); line-height: 1.08; transform-origin: 0 0; color: var(--ink); }
+.pill { position: absolute; left: 0; top: 0; white-space: nowrap; padding: 4px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-family: var(--font-display); font-weight: 600; font-size: 1rem; will-change: transform, opacity; }
+.pill.chosen { border-color: var(--call); }
+.dealt { position: absolute; inset: 0; border-radius: 17px; background: var(--surface); padding: 16px 18px; display: grid; gap: 12px; align-content: start; box-shadow: inset 0 0 0 1px var(--line), 0 8px 22px var(--shadow); will-change: transform; }
+.board { position: absolute; display: flex; gap: 3px; align-items: center; }
+.tile { position: relative; display: inline-grid; place-items: center; min-width: 0.66em; height: 1.18em; padding-inline: 1px; border-radius: 5px; background: var(--soft); color: var(--ink); font-family: var(--font-display); font-weight: 600; line-height: 1; }
+.tile::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--surface); opacity: 0.9; }
+.tile.space { background: none; min-width: 0.35em; }
+.tile.space::after { display: none; }
+.tile.flap { animation: flap 70ms ease-out; }
+.tile.set { background: var(--ink); color: var(--paper); transition: background 120ms ease, color 120ms ease; }
+@keyframes flap { from { transform: scaleY(0.25); } to { transform: none; } }
+.spot { position: absolute; transform: translate(0, -50%); transform-origin: left center; max-width: 46%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 3px 10px; border-radius: 999px; font-family: var(--font-display); font-weight: 600; font-size: 1.02rem; color: var(--muted); transition: background 90ms ease, color 90ms ease, transform 90ms ease, opacity 200ms ease; }
+.spot.lit { background: var(--soft); color: var(--ink); transform: translate(0, -50%) scale(1.08); box-shadow: 0 0 0 2px var(--call); }
+.fx.out .spot:not(.lit) { opacity: 0; }
+
+/* the dials and the prize wheel */
+.svgfx { position: absolute; overflow: visible; }
+.d-plate { fill: var(--soft); }
+.d-ring { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.d-digit { fill: var(--ink); font: 700 12px var(--font-ui); text-anchor: middle; dominant-baseline: central; }
+.d-hub { fill: var(--dial); }
+.d-stop { stroke: var(--ink); stroke-width: 5; stroke-linecap: round; }
+.d-spin { transform-box: fill-box; transform-origin: center; }
+.d-hole { fill: var(--soft); stroke: var(--line); stroke-width: 1; }
+.d-body { fill: var(--dial); }
+.d-face { fill: var(--surface); }
+.d-ringline { fill: none; stroke: var(--call); stroke-width: 2.5; stroke-linecap: round; }
+.d-label { fill: var(--muted); font: 600 12px var(--font-display); text-anchor: middle; dominant-baseline: central; }
+.d-label.on { fill: var(--ink); font-size: 14px; }
+.d-pointer { fill: var(--call); }
+.w-rim { fill: var(--dial); }
+.w-seg { stroke: var(--surface); stroke-width: 1.5; transition: opacity 160ms ease; }
+.w-seg.c0 { fill: var(--w1); } .w-seg.c1 { fill: var(--w2); } .w-seg.c2 { fill: var(--w3); } .w-seg.c3 { fill: var(--w4); }
+.w-seg.on { stroke: var(--call); stroke-width: 3; }
+.w-peg { fill: var(--dial-ink); }
+.w-label { fill: var(--ink); font-family: var(--font-display); font-weight: 600; text-anchor: end; dominant-baseline: central; transition: opacity 160ms ease; }
+.svgfx.w-landed .w-seg:not(.on), .svgfx.w-landed .w-label:not(.on) { opacity: 0.45; }
+.fly.digits { color: var(--muted); letter-spacing: 0.18em; font-variant-numeric: tabular-nums; }
+
+/* other views */
+.stack { display: grid; gap: 14px; padding-block: 4px 16px; }
+.view-title { margin: 4px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 1.6rem; line-height: 1.15; text-wrap: balance; }
+.sub { margin: 0; color: var(--muted); }
+.back { justify-self: start; min-height: 36px; padding: 0 2px; border: 0; background: none; color: var(--muted); font-weight: 600; cursor: pointer; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+.panel h3 { margin: 0; font-size: 1rem; }
+.fine { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.share-text { white-space: pre-line; overflow-wrap: anywhere; }
+.steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.facts li { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
+.facts li span:first-child { color: var(--muted); }
+.status-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.status-list li { display: flex; gap: 10px; align-items: baseline; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; transform: translateY(-1px); background: var(--muted); }
+.dot.ok { background: var(--call); }
+.dot.warn { background: var(--alert); }
+
+.kpi { display: grid; gap: 6px; }
+.kpi-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.kpi-num { font-family: var(--font-display); font-weight: 600; font-size: 3.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.kpi-of { color: var(--muted); }
+.meter { height: 8px; border-radius: 99px; background: var(--soft); overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 99px; background: var(--call); }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { background: var(--paper); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; align-content: start; min-width: 0; }
+.tile b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 0.82rem; }
+.table-wrap { overflow-x: auto; }
+.trend { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.92rem; }
+.trend th, .trend td { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.trend thead th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+.trend tbody th { font-weight: 500; color: var(--muted); padding-right: 10px; }
+
+.hist-day { margin: 10px 0 2px; font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.hist { margin: 0; padding: 0; list-style: none; }
+.hist li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.hist time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+.hist .dim { color: var(--muted); }
+.hist bdi { font-weight: 600; }
+.plain-list { margin: 0; padding: 0; list-style: none; }
+.plain-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.plain-list li span { min-width: 0; overflow-wrap: anywhere; }
+
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button { min-height: 40px; border: 0; background: none; color: var(--ink); font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.days button { min-height: 38px; padding: 0; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+.days button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.rem-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rem-row label { font-weight: 600; }
+.rem-row input[type="time"], .rem-own { min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 1rem; }
+.rem-own { width: 100%; box-sizing: border-box; }
+.rem-own:focus-visible, .rem-row input:focus-visible { outline: 3px solid var(--call); outline-offset: 1px; }
+.rem-preview { margin: 0; font-size: 0.9rem; }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.danger { color: var(--alert); }
+
+/* tabs, toast, sheet */
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); z-index: 5; }
+.tabs-inner { max-width: 460px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); }
+.tab { position: relative; min-height: 56px; border: 0; background: none; color: var(--muted); font-weight: 600; font-size: 0.88rem; cursor: pointer; }
+.tab[aria-current="page"] { color: var(--ink); }
+.tab[aria-current="page"]::after { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: var(--call); }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(66px + env(safe-area-inset-bottom, 0px)); width: min(428px, calc(100% - 32px)); box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 8px 8px 14px; border-radius: 12px; background: var(--ink); color: var(--paper); font-size: 0.92rem; z-index: 6; }
+.toast p { margin: 0; min-width: 0; }
+.toast button { border: 0; background: none; color: var(--paper); font-weight: 700; text-decoration: underline; min-height: 38px; padding: 0 10px; cursor: pointer; }
+.sheet-back { position: fixed; inset: 0; background: var(--scrim); display: grid; align-items: end; justify-items: center; padding: 16px; z-index: 10; }
+.sheet { width: min(460px, 100%); box-sizing: border-box; max-height: 85vh; overflow: auto; background: var(--surface); border-radius: 18px; padding: 16px; display: grid; gap: 12px; }
+.sheet h3 { margin: 0; font-size: 1.1rem; }
+.sheet p { margin: 0; }
+.sheet textarea { width: 100%; box-sizing: border-box; min-height: 150px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--paper); color: var(--ink); font: 12px/1.4 var(--font-mono); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <header class="top">
+    <h1 class="wordmark">Keep in Touch</h1>
+    <span class="motto">Spin. Call. Connect.</span>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <main id="main">
+    <!-- SPIN -->
+    <section id="view-spin" class="stack" aria-label="Spin">
+      <div class="dial-wrap">
+        <button class="dial" id="dial" type="button" aria-label="Spin to pick someone to call. Press and hold for a fun spin.">Spin</button>
+        <p class="hint" id="dial-hint">Tap to spin · hold for a fun spin</p>
+        <p class="saved" id="saved-line" hidden></p>
+      </div>
+
+      <article class="card" id="card" hidden>
+        <p class="eyebrow" id="eyebrow">Your call today</p>
+        <h2 class="name" id="pname" dir="auto" aria-live="polite"></h2>
+        <div class="number-row" id="number-row">
+          <span class="num-label" id="nlabel"></span>
+          <span class="number" id="pnumber" dir="ltr"></span>
+          <button class="btn btn-small" id="copy" type="button">Copy number</button>
+        </div>
+        <p class="why" id="why"></p>
+        <p class="nudge" id="nudge" hidden>People usually appreciate a call more than we expect.</p>
+
+        <div class="actions" id="act-picked">
+          <a class="btn btn-call" id="call" href="#">Call</a>
+          <button class="btn" type="button" data-action="reroll">Spin again</button>
+        </div>
+        <div class="actions" id="act-checkin" hidden>
+          <p class="ask" id="checkin-q">When you’re done:</p>
+          <div class="row3">
+            <button class="btn" type="button" data-action="talked">We talked</button>
+            <button class="btn" type="button" data-action="noAnswer">No answer</button>
+            <button class="btn" type="button" data-action="notCalled">Didn’t call</button>
+          </div>
+        </div>
+        <div class="actions" id="act-would" hidden>
+          <p class="ask" id="would-q"></p>
+          <div class="row2">
+            <button class="btn" type="button" data-action="wouldHave">Yes</button>
+            <button class="btn" type="button" data-action="wouldNot">No</button>
+          </div>
+        </div>
+        <div class="actions" id="act-done" hidden>
+          <p class="ask" id="done-msg"></p>
+          <button class="btn" type="button" data-action="spin">Spin again</button>
+        </div>
+
+        <div class="tags" id="tags">
+          <p class="tags-label">Tell the app</p>
+          <div class="chips">
+            <button class="chip" type="button" data-tag="spokeWeek">Spoke this week</button>
+            <button class="chip" type="button" data-tag="spokeMonth">Spoke this month</button>
+            <button class="chip" type="button" data-tag="friend" aria-pressed="false">Friend</button>
+            <button class="chip" type="button" data-tag="family" aria-pressed="false">Family</button>
+            <button class="chip" type="button" data-tag="work" aria-pressed="false">Work</button>
+            <button class="chip" type="button" data-tag="business">Business</button>
+            <button class="chip" type="button" data-tag="hide">Don’t suggest</button>
+          </div>
+        </div>
+      </article>
+
+      <div class="panel" id="empty" hidden>
+        <h3>Nobody can come up right now</h3>
+        <p class="fine">Everyone left is hidden, tagged as a business, or was just shown. Check “Hidden from spins” in Settings, or bring in your contacts again.</p>
+        <button class="btn" type="button" data-go="settings">Open Settings</button>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="view-history" class="stack" hidden aria-label="History">
+      <h2 class="view-title">History</h2>
+      <div id="history-body"></div>
+    </section>
+
+    <!-- TWO-WEEK TEST (opened from Settings) -->
+    <section id="view-test" class="stack" hidden aria-label="Two-week test">
+      <button class="back" type="button" data-go="settings">← Settings</button>
+      <h2 class="view-title">Two-week test</h2>
+      <p class="sub" id="test-sub"></p>
+      <div id="test-body" class="stack"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="stack" hidden aria-label="Settings">
+      <h2 class="view-title">Settings</h2>
+      <div id="settings-body" class="stack"></div>
+    </section>
+
+    <!-- IMPORT -->
+    <section id="view-import" class="stack" hidden aria-label="Bring in your contacts">
+      <button class="back" type="button" data-go="settings">← Settings</button>
+      <h2 class="view-title">Bring in your contacts</h2>
+      <div class="panel" id="import-steps">
+        <ol class="steps">
+          <li><b>Export them as a contacts file (.vcf).</b><br>On your phone: Google Contacts app → <i>Fix &amp; manage</i> → <i>Export to file</i>.<br>On a computer: contacts.google.com → <i>Export</i> → <i>vCard</i>.</li>
+          <li><b>Choose that file here.</b></li>
+        </ol>
+        <label class="btn btn-ink file-btn">Choose contacts file<input type="file" id="file-vcf" accept=".vcf,.vcard,text/vcard,text/x-vcard"></label>
+        <p class="fine">The file is read on this device. Nothing is uploaded.</p>
+      </div>
+      <div class="panel" id="import-result" hidden></div>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="Sections">
+    <div class="tabs-inner">
+      <button class="tab" type="button" data-go="spin" aria-current="page">Spin</button>
+      <button class="tab" type="button" data-go="history">History</button>
+      <button class="tab" type="button" data-go="settings">Settings</button>
+    </div>
+  </nav>
+
+  <div class="toast" id="toast" role="status" hidden><p id="toast-text"></p><button type="button" id="toast-undo">Undo</button></div>
+  <div class="sheet-back" id="sheet-back" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"></div></div>
+</div>
+
+<script>
+/*
+ * Keep in Touch v0: contacts-file (vCard) reader.
+ *
+ * Reads .vcf exports from Google Contacts (vCard 3.0), Android phones (vCard 2.1, often
+ * quoted-printable, which is how accented and non-Latin names usually arrive), iPhone/iCloud (3.0 with grouped
+ * labels) and vCard 4.0. No network, no dependencies; runs in browsers and in Node.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.KITVcard = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  function toLines(text) {
+    return String(text || '').replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n');
+  }
+
+  // Index of the colon that separates "NAME;PARAMS" from the value (ignoring colons in quotes).
+  function valueColon(line) {
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') quoted = !quoted;
+      else if (c === ':' && !quoted) return i;
+    }
+    return -1;
+  }
+
+  function isQuotedPrintableHead(head) {
+    return /ENCODING=QUOTED-PRINTABLE|;QUOTED-PRINTABLE(;|$)/i.test(head);
+  }
+
+  // RFC 2425/6350 folding: a line starting with a space or tab continues the previous line.
+  // vCard 2.1 quoted-printable: a value ending in "=" continues on the next physical line.
+  function unfold(text) {
+    const raw = toLines(text);
+    const folded = [];
+    for (const line of raw) {
+      if ((line[0] === ' ' || line[0] === '\t') && folded.length) folded[folded.length - 1] += line.slice(1);
+      else folded.push(line);
+    }
+    const out = [];
+    for (let i = 0; i < folded.length; i++) {
+      let line = folded[i];
+      const colon = valueColon(line);
+      if (colon > 0 && isQuotedPrintableHead(line.slice(0, colon))) {
+        while (line.endsWith('=') && i + 1 < folded.length) line = line.slice(0, -1) + folded[++i];
+      }
+      out.push(line);
+    }
+    return out;
+  }
+
+  function splitOutsideQuotes(s, sep) {
+    const parts = [];
+    let cur = '';
+    let quoted = false;
+    for (const c of s) {
+      if (c === '"') { quoted = !quoted; cur += c; }
+      else if (c === sep && !quoted) { parts.push(cur); cur = ''; }
+      else cur += c;
+    }
+    parts.push(cur);
+    return parts;
+  }
+
+  function decodeQuotedPrintable(s, charset) {
+    const bytes = [];
+    for (let i = 0; i < s.length; i++) {
+      const code = s.charCodeAt(i);
+      if (s[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 1, i + 3))) {
+        bytes.push(parseInt(s.slice(i + 1, i + 3), 16));
+        i += 2;
+      } else if (code < 128) {
+        bytes.push(code);
+      } else {
+        const cp = s.codePointAt(i);
+        for (const b of new TextEncoder().encode(String.fromCodePoint(cp))) bytes.push(b);
+        if (cp > 0xffff) i++;
+      }
+    }
+    let label = String(charset || 'utf-8').trim().toLowerCase();
+    if (label === 'utf8') label = 'utf-8';
+    try {
+      return new TextDecoder(label).decode(new Uint8Array(bytes));
+    } catch (e) {
+      return new TextDecoder('utf-8').decode(new Uint8Array(bytes));
+    }
+  }
+
+  function unescapeText(s) {
+    return String(s).replace(/\\(.)/g, (m, c) => (c === 'n' || c === 'N' ? '\n' : c));
+  }
+
+  // Split on unescaped separators (";" for N/ORG, "," for CATEGORIES), then unescape each part.
+  function splitEscaped(value, sep) {
+    const out = [];
+    let cur = '';
+    for (let i = 0; i < value.length; i++) {
+      const c = value[i];
+      if (c === '\\' && i + 1 < value.length) { cur += c + value[i + 1]; i++; }
+      else if (c === sep) { out.push(cur); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out.map(unescapeText);
+  }
+
+  function parseLine(line) {
+    const colon = valueColon(line);
+    if (colon <= 0) return null;
+    const head = splitOutsideQuotes(line.slice(0, colon), ';');
+    let value = line.slice(colon + 1);
+    let name = head[0].trim();
+    let group = '';
+    const dot = name.lastIndexOf('.');
+    if (dot >= 0) { group = name.slice(0, dot).toLowerCase(); name = name.slice(dot + 1); }
+    name = name.toUpperCase();
+    const params = {};
+    const types = [];
+    for (let i = 1; i < head.length; i++) {
+      const p = head[i].trim();
+      if (!p) continue;
+      const eq = p.indexOf('=');
+      if (eq < 0) { types.push(p.toUpperCase()); continue; } // vCard 2.1 bare types: TEL;CELL;PREF:
+      const key = p.slice(0, eq).trim().toUpperCase();
+      const val = p.slice(eq + 1).trim().replace(/^"(.*)"$/, '$1');
+      if (key === 'TYPE') val.split(',').forEach((t) => { if (t.trim()) types.push(t.trim().toUpperCase()); });
+      else params[key] = val;
+    }
+    let encoding = (params.ENCODING || '').toUpperCase();
+    if (!encoding && types.includes('QUOTED-PRINTABLE')) encoding = 'QUOTED-PRINTABLE';
+    if (!encoding && types.includes('BASE64')) encoding = 'BASE64';
+    let binary = false;
+    if (encoding === 'QUOTED-PRINTABLE') value = decodeQuotedPrintable(value, params.CHARSET);
+    else if (encoding === 'B' || encoding === 'BASE64') { binary = value.length > 0; value = ''; }
+    return { group, name, params, types, value, binary };
+  }
+
+  function cleanLabel(s) {
+    return String(s || '').replace(/^_\$!<(.*)>!\$_$/, '$1').trim();
+  }
+
+  function emptyCard() {
+    return {
+      version: '', fn: '', given: '', family: '', middle: '', prefix: '', suffix: '',
+      nickname: '', org: '', orgUnit: '', title: '',
+      tels: [], emails: [], categories: [], related: [],
+      bday: false, events: false, hasPhoto: false, uid: '', note: '',
+      groupLabels: {},
+    };
+  }
+
+  function addProp(card, p) {
+    const v = p.value;
+    switch (p.name) {
+      case 'VERSION': card.version = v.trim(); break;
+      case 'FN': card.fn = unescapeText(v).trim(); break;
+      case 'N': {
+        const c = splitEscaped(v, ';').map((x) => x.trim());
+        card.family = c[0] || ''; card.given = c[1] || ''; card.middle = c[2] || '';
+        card.prefix = c[3] || ''; card.suffix = c[4] || '';
+        break;
+      }
+      case 'NICKNAME': if (v.trim()) card.nickname = unescapeText(v).trim(); break;
+      case 'ORG': {
+        const c = splitEscaped(v, ';').map((x) => x.trim()).filter(Boolean);
+        if (c[0]) card.org = c[0];
+        if (c[1]) card.orgUnit = c[1];
+        break;
+      }
+      case 'TITLE':
+      case 'ROLE': if (v.trim()) card.title = unescapeText(v).trim(); break;
+      case 'TEL': {
+        let num = unescapeText(v).trim();
+        if (/^tel:/i.test(num)) num = num.slice(4);
+        num = num.split(';')[0].trim(); // drop URI parameters such as ;ext=
+        if (num) card.tels.push({ raw: num, types: p.types.slice(), group: p.group, pref: p.types.includes('PREF') || !!p.params.PREF, label: '' });
+        break;
+      }
+      case 'EMAIL': if (v.trim()) card.emails.push(unescapeText(v).trim().toLowerCase()); break;
+      case 'CATEGORIES':
+        splitEscaped(v, ',').map((x) => x.trim()).filter(Boolean).forEach((x) => card.categories.push(x));
+        break;
+      case 'BDAY': if (v.trim()) card.bday = true; break;
+      case 'ANNIVERSARY':
+      case 'X-ANNIVERSARY':
+      case 'X-ABDATE': if (v.trim()) card.events = true; break;
+      case 'X-ABRELATEDNAMES':
+      case 'RELATED':
+        if (v.trim()) card.related.push({ name: unescapeText(v).trim(), group: p.group, label: '' });
+        break;
+      case 'PHOTO': if (p.binary || v.trim()) card.hasPhoto = true; break;
+      case 'UID': card.uid = v.trim(); break;
+      case 'NOTE': card.note = unescapeText(v).trim(); break;
+      case 'X-ABLABEL': if (p.group) card.groupLabels[p.group] = cleanLabel(unescapeText(v)); break;
+      case 'X-ANDROID-CUSTOM': {
+        const c = splitEscaped(v, ';');
+        const kind = (c[0] || '').toLowerCase();
+        if (kind.endsWith('/nickname') && c[1] && c[1].trim()) card.nickname = c[1].trim();
+        else if (kind.endsWith('/relation') && c[1] && c[1].trim()) card.related.push({ name: c[1].trim(), group: '', label: '' });
+        else if (kind.endsWith('/contact_event') && c[1] && c[1].trim()) card.events = true;
+        break;
+      }
+      default: break;
+    }
+  }
+
+  function displayName(card) {
+    if (card.fn) return card.fn;
+    const parts = [card.prefix, card.given, card.middle, card.family, card.suffix].filter(Boolean);
+    if (parts.length) return parts.join(' ');
+    if (card.nickname) return card.nickname;
+    if (card.org) return card.org;
+    if (card.tels.length) return card.tels[0].raw;
+    if (card.emails.length) return card.emails[0];
+    return '';
+  }
+
+  function finishCard(card) {
+    for (const t of card.tels) {
+      const label = t.group && card.groupLabels[t.group];
+      if (label) { t.label = label; t.types.push(label.toUpperCase()); }
+    }
+    for (const r of card.related) {
+      if (r.group && card.groupLabels[r.group]) r.label = card.groupLabels[r.group];
+    }
+    card.name = displayName(card);
+    card.nameFromNumber = !card.fn && !card.given && !card.family && !card.nickname && !card.org && card.tels.length > 0;
+    delete card.groupLabels;
+    return card;
+  }
+
+  /** Parse a .vcf file's text. Returns { cards, unfinished } where unfinished counts cards missing END:VCARD. */
+  function parse(text) {
+    const cards = [];
+    let cur = null;
+    let unfinished = 0;
+    for (const line of unfold(text)) {
+      if (!line.trim()) continue;
+      if (/^BEGIN:VCARD\s*$/i.test(line.trim())) {
+        if (cur) { unfinished++; cards.push(finishCard(cur)); }
+        cur = emptyCard();
+        continue;
+      }
+      if (/^END:VCARD\s*$/i.test(line.trim())) {
+        if (cur) cards.push(finishCard(cur));
+        cur = null;
+        continue;
+      }
+      if (!cur) continue;
+      const p = parseLine(line);
+      if (p) addProp(cur, p);
+    }
+    if (cur) { unfinished++; cards.push(finishCard(cur)); }
+    return { cards, unfinished };
+  }
+
+  return { parse, unfold, parseLine, decodeQuotedPrintable, splitEscaped, unescapeText };
+});
+</script>
+<script>
+/*
+ * Keep in Touch v0: the relationship engine.
+ *
+ * Turns contacts into people, guesses on day one how likely each is a personal relationship,
+ * picks someone by weighted chance, and learns from calls, rerolls and quick tags.
+ * Everything runs on the device: no network, no dependencies; runs in browsers and in Node.
+ * The design and every constant below are explained in ENGINE.md.
+ *
+ * weight = eligible x probability^sharpness x recency x suppression x relation x top-of-mind
+ * 20% of spins are "exploration" spins drawn from people the engine knows little about.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.KITEngine = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const VERSION = '0.1.8';
+  const SCHEMA = 2; // 2: compact saving (source data only; the rest is recomputed on load)
+  const DAY = 86400000;
+  const HOUR = 3600000;
+
+  // ---------------------------------------------------------------- tunable constants
+  const PARAMS = {
+    baseProbability: 0.4,        // day-one guess for a contact with no signals at all
+    priorStrength: 3,            // how many observations the day-one guess is worth
+    sharpness: 3,                // weight uses probability^sharpness (3 beat 1 and 2 in sim/SIM-REPORT.md)
+    exploration: 0.2,            // share of spins drawn from people the engine knows little about
+    exploreMinPrior: 0.12,       // ...but not from likely businesses
+    exploreMaxPrior: 0.75,       // ...and not from people it is already confident about
+    callEvidence: 1.0,           // tapping Call
+    talkedEvidence: 0.5,         // answering "We talked" (on top of the call)
+    spokeEvidence: 0.75,         // "Spoke this week / month" implies a real relationship
+    rerollEvidence: 0.35,        // "Spin again" is a weak, temporary negative
+    relationEvidence: { family: 4, friend: 3, work: 0 },
+    relationWeight: { family: 1, friend: 1, work: 0.6 },
+    defaultCadenceDays: { family: 14, friend: 30, work: 60, none: 45 },
+    spokeWeekDaysAgo: 3.5,
+    spokeMonthDaysAgo: 15,
+    rerollCooldownHours: 20,     // a rerolled person sits out until tomorrow...
+    rerollBackoff: 3,            // ...and each "not now" in a row triples that: 20 h, 2.5 days, 7.5 days (sim/TUNING.md)
+    rerollMaxDays: 21,           // ...up to three weeks; a call or a conversation resets it
+    attemptCooldownHours: 36,    // a call that didn't connect waits a day and a half
+    shownSuppression: 0.8,       // someone just shown is 80% less likely right after...
+    shownRecoveryDays: 3,        // ...recovering over a few days
+    maxOverdueBoost: 1.6,
+    topOfMindStep: 0.5,          // "I'd have called them anyway" lowers future nudges a little
+    topOfMindFloor: 0.4,
+    maxEvents: 20000,
+  };
+
+  // ---------------------------------------------------------------- small helpers
+  const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+  const logit = (p) => Math.log(p / (1 - p));
+  const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+  const uniq = (arr) => [...new Set(arr)];
+
+  function median(xs) {
+    const s = xs.slice().sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+
+  function fnv1a(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(16).padStart(8, '0');
+  }
+
+  /** Small seeded random generator for tests and simulations. */
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /** Local calendar day as a number like 20261012. */
+  function dayKey(t) {
+    const d = new Date(t);
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  }
+
+  // ---------------------------------------------------------------- keyword lists
+  // Keywords match whole words in the name.
+  const KEYWORDS = {
+    businessLatin: [
+      'inc', 'llc', 'ltd', 'co', 'corp', 'company', 'gmbh', 'plc', 'store', 'shop', 'market', 'supermarket', 'mall',
+      'pharmacy', 'clinic', 'hospital', 'medical', 'dental', 'office', 'dept', 'department', 'service', 'services',
+      'support', 'customer', 'helpdesk', 'hotline', 'reception', 'booking', 'bookings', 'reservations', 'delivery',
+      'deliveries', 'pizza', 'pizzeria', 'restaurant', 'cafe', 'bakery', 'sushi', 'grill', 'catering', 'hotel', 'motel',
+      'taxi', 'cab', 'airline', 'airlines', 'airport', 'bank', 'insurance', 'mortgage', 'credit', 'loans', 'realty',
+      'properties', 'agency', 'travel', 'tours', 'salon', 'barbershop', 'spa', 'nails', 'gym', 'fitness', 'studio',
+      'academy', 'college', 'university', 'kindergarten', 'daycare', 'garage', 'motors', 'tires', 'repair', 'repairs',
+      'plumbing', 'electric', 'hvac', 'cleaning', 'movers', 'moving', 'locksmith', 'printing', 'laundry', 'cleaners',
+      'optical', 'optician', 'veterinary', 'courier', 'fedex', 'ups', 'dhl', 'municipality', 'embassy', 'consulate',
+      'ministry', 'government', 'ambulance', 'emergency', 'pickup', 'takeout',
+      // added 0.1.5
+      'wig', 'wigs', 'productions', 'studios', 'travels', 'meals', 'number', 'reminder', 'apt',
+      'apartment', 'apartments', 'rentals', 'smartphone', 'cellular', 'hotline', 'line',
+      'sons', 'brothers',
+    ],
+    roleLatin: [
+      'plumber', 'electrician', 'handyman', 'contractor', 'mechanic', 'technician', 'tech', 'lawyer', 'attorney', 'notary',
+      'accountant', 'cpa', 'bookkeeper', 'realtor', 'broker', 'agent', 'landlord', 'super', 'superintendent', 'driver',
+      'painter', 'carpenter', 'gardener', 'cleaner', 'installer', 'dr', 'doctor', 'dentist', 'pediatrician', 'physio',
+      'chiropractor', 'optometrist', 'pharmacist', 'vet', 'rep', 'sales', 'recruiter', 'mover', 'courier', 'seller',
+      'buyer', 'supplier', 'vendor', 'dealer', 'tailor', 'barber',
+      'therapist', 'counselor', 'lcsw', 'coach', 'tutor', 'guide', 'photographer', 'videographer', 'editor', 'writer',
+      'caterer', 'chef',
+    ],
+    workLatin: ['work', 'coworker', 'colleague'],
+    familyLatin: [
+      'mom', 'mommy', 'mother', 'mum', 'mama', 'ma', 'dad', 'daddy', 'father', 'papa', 'grandma', 'grandpa', 'grandmother', 'grandfather', 'granny', 'aunt', 'auntie', 'uncle', 'tante',
+      'cousin', 'brother', 'sister', 'bro', 'sis', 'son', 'daughter', 'wife', 'husband', 'hubby',
+      'mother-in-law', 'father-in-law', 'sister-in-law', 'brother-in-law',
+    ],
+  };
+
+  const LABELS = {
+    starred: ['starred', 'favorites', 'favourites', 'favorite', 'favourite'],
+    ignore: ['mycontacts', 'my contacts', 'other contacts', 'othercontacts', 'all contacts', 'contacts', 'unlabeled', 'chat buddies'],
+    family: ['family', 'relatives', 'parents', 'siblings', 'cousins', 'kids', 'children', 'in-laws', 'inlaws'],
+    friend: ['friends', 'friend', 'buddies', 'besties'],
+    work: ['work', 'coworkers', 'co-workers', 'colleagues', 'office', 'job', 'team', 'staff', 'employees'],
+    business: ['hotline', 'hotlines', 'profession', 'professions', 'professionals', 'business', 'businesses', 'vendors', 'suppliers', 'services', 'service providers', 'contractors', 'clients', 'customers', 'leads'],
+  };
+
+  const SPOUSE_WORDS = ['wife', 'husband', 'hubby'];
+
+  const PERSONAL_EMAIL = /@(gmail|googlemail|yahoo|ymail|hotmail|outlook|live|msn|icloud|me|mac|aol|protonmail|proton|gmx|mail|yandex)\./i;
+
+  function latinWords(s) {
+    return ' ' + String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9-]+/g, ' ').trim() + ' ';
+  }
+  function findLatin(name, list) {
+    const w = latinWords(name);
+    return list.find((k) => w.includes(' ' + k + ' ')) || '';
+  }
+  function labelHas(label, k) {
+    return label === k || label.startsWith(k + ' ') || label.endsWith(' ' + k) || label.includes(' ' + k + ' ');
+  }
+
+  function classifyLabels(categories) {
+    const out = { starred: false, family: '', friend: '', work: '', business: '', other: [] };
+    for (const raw of categories || []) {
+      const c = String(raw).trim();
+      const l = c.toLowerCase();
+      if (!c || /^imported/i.test(c)) continue;
+      if (LABELS.starred.includes(l) || l.includes('starred')) { out.starred = true; continue; }
+      if (LABELS.ignore.includes(l)) continue;
+      if (LABELS.family.some((k) => labelHas(l, k))) { out.family = out.family || c; continue; }
+      if (LABELS.friend.some((k) => labelHas(l, k))) { out.friend = out.friend || c; continue; }
+      if (LABELS.business.some((k) => labelHas(l, k))) { out.business = out.business || c; continue; }
+      if (LABELS.work.some((k) => labelHas(l, k))) { out.work = out.work || c; continue; }
+      out.other.push(c);
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- phone numbers
+  function classifyNumber(tel) {
+    const raw = String((tel && tel.raw) || '').trim();
+    const d = raw.replace(/[^0-9]/g, '');
+    const types = ((tel && tel.types) || []).map((t) => String(t).toUpperCase());
+    const label = String((tel && tel.label) || '').toLowerCase();
+    const n = {
+      raw, digits: d, key: '', types, label: (tel && tel.label) || '', pref: !!(tel && tel.pref),
+      fax: false, service: false, mobile: null, workish: false, callable: false,
+    };
+    n.fax = (types.includes('FAX') && !types.includes('VOICE') && !types.includes('CELL')) || /(^|\W)fax(\W|$)/.test(label);
+    if (/[*#]/.test(raw) && d) { n.service = true; n.key = '*' + d; }
+    else if (d.length > 0 && d.length <= 6) { n.service = true; n.key = '#' + d; }
+    else if (d) {
+      n.key = d.length >= 9 ? d.slice(-9) : d;
+      if (/^1?(800|833|844|855|866|877|888)\d{7}$/.test(d) || /^(?:972)?1(?:700|599|80\d)\d{6}$/.test(d)) n.service = true;
+    }
+    const typeMobile = types.some((t) => t === 'CELL' || t === 'MOBILE' || t === 'IPHONE' || t === 'CELLULAR') || /mobile|cell/.test(label);
+    if (typeMobile || /^(?:972|0)5\d{8}$/.test(d)) n.mobile = true;
+    else if (/^(?:972|0)[23489]\d{7}$/.test(d)) n.mobile = false;
+    n.workish = types.some((t) => t === 'WORK' || t === 'MAIN' || t === 'COMPANY' || t === 'X-COMPANY' || t === 'COMPANY_MAIN') || /work|office/.test(label);
+    n.callable = d.length >= 7 && !n.fax && !n.service;
+    return n;
+  }
+
+  // ---------------------------------------------------------------- day-one guess
+  // Every day-one signal has a fixed code. Shared stats count picks by these codes, never by the
+  // reason text, which can quote the user's own label names.
+  const SIGNALS = [
+    'starred', 'familyLabel', 'friendLabel', 'otherLabel', 'workLabel', 'businessLabel', 'familyWord', 'birthday',
+    'otherDate', 'relationship', 'nickname', 'photo', 'personalEmail', 'businessName', 'jobName', 'workName', 'fullName',
+    'company', 'companyField', 'jobTitle', 'mobile', 'workNumberOnly', 'landlineOnly', 'noName', 'numbersInName',
+  ];
+
+  function dayOnePrior(person) {
+    const reasons = [];
+    const signals = [];
+    let lo = logit(PARAMS.baseProbability);
+    const add = (w, text, code) => { lo += w; signals.push(code); if (text) reasons.push({ text, w }); };
+    const name = person.name || '';
+    const labels = classifyLabels(person.categories);
+
+    if (labels.starred) add(2.2, 'Starred', 'starred');
+    if (labels.family) add(1.8, 'In your “' + labels.family + '” label', 'familyLabel');
+    if (labels.friend) add(1.5, 'In your “' + labels.friend + '” label', 'friendLabel');
+    if (labels.other.length) add(0.3, 'In your “' + labels.other[0] + '” label', 'otherLabel');
+    if (labels.work) add(-0.6, 'In your “' + labels.work + '” label', 'workLabel');
+    if (labels.business) add(-2.5, 'In your “' + labels.business + '” label', 'businessLabel');
+
+    const biz = findLatin(name, KEYWORDS.businessLatin);
+    // "Wife" after a name is usually someone else's ("Mike Carter Wife"); it means yours only first ("Wife", "My wife").
+    const firstWords = latinWords(name).trim().split(' ');
+    const spouse = SPOUSE_WORDS.includes(firstWords[0]) || (firstWords[0] === 'my' && SPOUSE_WORDS.includes(firstWords[1]));
+    const fam = !biz && (findLatin(name, KEYWORDS.familyLatin.filter((k) => !SPOUSE_WORDS.includes(k))) || (spouse && 'spouse'));
+    if (fam) add(2.0, 'Family word in the name', 'familyWord');
+    if (person.bday) add(1.0, 'Birthday saved', 'birthday');
+    if (person.events) add(0.6, 'A date saved', 'otherDate');
+    if (person.related > 0) add(0.8, 'Relationship saved', 'relationship');
+    if (person.nickname) add(0.6, 'Nickname saved', 'nickname');
+    if (person.hasPhoto) add(0.3, 'Has a photo', 'photo');
+    if ((person.emails || []).some((e) => PERSONAL_EMAIL.test(e))) add(0.2, null, 'personalEmail');
+
+    const role = !biz && findLatin(name, KEYWORDS.roleLatin);
+    if (biz) add(-2.2, 'Name looks like a business', 'businessName');
+    else if (role) add(-2.0, 'Name includes a job or service', 'jobName');
+    else if (findLatin(name, KEYWORDS.workLatin)) add(-0.6, 'Name mentions work', 'workName');
+    // A full first + last name hints at a person, unless the "last name" is a trade ("Tom Plumber").
+    if (person.given && person.family && !biz && !role) add(0.4, null, 'fullName');
+    const sameAsOrg = person.org && (!person.fnRaw || person.fnRaw.trim().toLowerCase() === person.org.trim().toLowerCase());
+    if (person.org && !person.given && !person.family && sameAsOrg) add(-2.5, 'Saved as a company', 'company');
+    else if (person.org) add(-0.5, 'Company field filled in', 'companyField');
+    // A service in the job-title field ("Therapist", "Broker") is the same evidence as one in the name.
+    if (person.title && !biz && !role && findLatin(person.title, KEYWORDS.roleLatin)) add(-1.5, 'Job title is a service', 'jobTitle');
+    else if (person.title) add(-0.3, 'Job title saved', 'jobTitle');
+
+    const callable = person.numbers.filter((n) => n.callable);
+    if (callable.some((n) => n.mobile && !n.workish)) add(0.5, 'Has a mobile number', 'mobile');
+    else if (callable.length && callable.every((n) => n.workish)) add(-0.8, 'Only a work or main number', 'workNumberOnly');
+    else if (callable.length && callable.every((n) => n.mobile === false)) add(-0.3, 'Landline only', 'landlineOnly');
+
+    if (person.nameFromNumber) add(-1.5, 'No name saved', 'noName');
+    else if (/\d/.test(name)) add(-0.6, 'Name contains numbers', 'numbersInName');
+
+    reasons.sort((a, b) => Math.abs(b.w) - Math.abs(a.w));
+    return { prob: clamp(sigmoid(lo), 0.02, 0.97), reasons, signals };
+  }
+
+  function baseIneligibility(person) {
+    if (!person.numbers.length) return 'no-number';
+    if (person.numbers.some((n) => n.callable)) return '';
+    if (person.numbers.some((n) => n.service)) return 'service-number';
+    if (person.numbers.every((n) => n.fax)) return 'fax-only';
+    return 'no-number';
+  }
+
+  // ---------------------------------------------------------------- building people from cards
+  function nameScore(c) {
+    let s = 0;
+    if (c.given) s += 2;
+    if (c.family) s += 2;
+    if (c.fn) s += 1;
+    if (c.nameFromNumber) s -= 5;
+    return s + Math.min(String(c.name || '').length, 40) / 100;
+  }
+
+  function bestNumberIndex(numbers) {
+    let best = -1;
+    let bestScore = -Infinity;
+    numbers.forEach((num, i) => {
+      if (!num.callable) return;
+      let s = 0;
+      if (num.mobile && !num.workish) s += 4;
+      else if (num.mobile) s += 2;
+      if (num.pref) s += 1;
+      if (num.workish) s -= 1;
+      if (num.types.includes('HOME')) s += 0.5;
+      if (s > bestScore) { bestScore = s; best = i; }
+    });
+    return best;
+  }
+
+  function mergeCards(cs, numsList) {
+    const best = cs.slice().sort((a, b) => nameScore(b) - nameScore(a))[0];
+    const numbers = [];
+    const byKey = new Map();
+    for (const num of numsList.flat()) {
+      const k = num.key || num.raw;
+      const ex = byKey.get(k);
+      if (ex) {
+        num.types.forEach((t) => { if (!ex.types.includes(t)) ex.types.push(t); });
+        if (num.mobile) ex.mobile = true;
+        ex.pref = ex.pref || num.pref;
+        ex.workish = ex.workish && num.workish;
+        continue;
+      }
+      const copy = Object.assign({}, num, { types: num.types.slice() });
+      byKey.set(k, copy);
+      numbers.push(copy);
+    }
+    const firstOf = (field) => (cs.find((c) => c[field]) || {})[field] || '';
+    const rawName = String(best.name || '').trim();
+    const person = {
+      id: '',
+      name: rawName,
+      fnRaw: best.fn || '',
+      given: best.given || '',
+      family: best.family || '',
+      nickname: firstOf('nickname'),
+      org: firstOf('org'),
+      title: firstOf('title'),
+      categories: uniq(cs.flatMap((c) => c.categories || [])),
+      emails: uniq(cs.flatMap((c) => c.emails || [])),
+      bday: cs.some((c) => c.bday),
+      events: cs.some((c) => c.events),
+      related: cs.reduce((s, c) => s + (c.related || []).length, 0),
+      hasPhoto: cs.some((c) => c.hasPhoto),
+      nameFromNumber: cs.every((c) => c.nameFromNumber) || /^[\d\s+()\-.*#]+$/.test(rawName),
+      sources: cs.length,
+      numbers,
+    };
+    if (!person.name) person.name = (numbers[0] && numbers[0].raw) || person.emails[0] || 'No name';
+    person.best = bestNumberIndex(numbers);
+    const keys = numbers.filter((n) => n.key).map((n) => n.key).sort();
+    person.id = keys.length ? 'p' + keys[0] : 'n' + fnv1a([person.name].concat(person.emails).join('|').toLowerCase());
+    const pr = dayOnePrior(person);
+    person.prior = pr.prob;
+    person.reasons = pr.reasons;
+    person.signals = pr.signals;
+    person.ineligible = baseIneligibility(person);
+    person.eligible = !person.ineligible;
+    return person;
+  }
+
+  /** Cards (from KITVcard.parse) -> merged people with a day-one guess. */
+  function buildPeople(cards) {
+    const n = cards.length;
+    const parent = Array.from({ length: n }, (_, i) => i);
+    const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+    const union = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); };
+    const classified = cards.map((c) => (c.tels || []).map(classifyNumber));
+    const owner = new Map();
+    classified.forEach((nums, i) => nums.forEach((num) => {
+      if (!num.key || (num.key.length < 7 && !/^[*#]/.test(num.key))) return;
+      if (owner.has(num.key)) union(i, owner.get(num.key));
+      else owner.set(num.key, i);
+    }));
+    const groups = new Map();
+    for (let i = 0; i < n; i++) {
+      const r = find(i);
+      if (!groups.has(r)) groups.set(r, []);
+      groups.get(r).push(i);
+    }
+    const people = [];
+    const used = new Set();
+    for (const idxs of groups.values()) {
+      const p = mergeCards(idxs.map((i) => cards[i]), idxs.map((i) => classified[i]));
+      let id = p.id;
+      let k = 2;
+      while (used.has(id)) id = p.id + '-' + k++;
+      p.id = id;
+      used.add(id);
+      people.push(p);
+    }
+    const summary = {
+      cards: n,
+      people: people.length,
+      merged: n - people.length,
+      noNumber: people.filter((p) => p.ineligible === 'no-number' || p.ineligible === 'fax-only').length,
+      serviceNumbers: people.filter((p) => p.ineligible === 'service-number').length,
+      likelyBusiness: people.filter((p) => p.eligible && p.prior < 0.15).length,
+      likelyPersonal: people.filter((p) => p.eligible && p.prior >= 0.6).length,
+      eligible: people.filter((p) => p.eligible).length,
+    };
+    return { people, summary };
+  }
+
+  // ---------------------------------------------------------------- state
+  function newLearn() {
+    return {
+      rel: '', business: false, hidden: false, pos: 0, neg: 0,
+      shown: 0, rerolls: 0, notNow: 0, calls: 0, talked: 0, noAnswer: 0, wouldHave: 0, wouldNot: 0,
+      lastShownAt: 0, lastRerollAt: 0, lastAttemptAt: 0, lastContactAt: 0, contacts: [],
+    };
+  }
+
+  function defaultSettings() {
+    // reminder days use JavaScript numbering: 0 = Sunday ... 6 = Saturday. Default Sunday to Thursday.
+    return { exploration: PARAMS.exploration, reminder: { time: '20:00', days: [0, 1, 2, 3, 4] }, lastBackupAt: 0, reminderAddedAt: 0, everyday: 'reel' };
+  }
+
+  function createState(now) {
+    const t = now || Date.now();
+    return {
+      app: 'keep-in-touch', schema: SCHEMA, engine: VERSION, createdAt: t, updatedAt: t,
+      people: {}, learn: {}, events: [], pending: null, seq: 0,
+      settings: defaultSettings(), importInfo: null,
+    };
+  }
+
+  function learnOf(state, id) {
+    if (!state.learn[id]) state.learn[id] = newLearn();
+    return state.learn[id];
+  }
+
+  function logEvent(state, e) {
+    state.events.push(e);
+    if (state.events.length > PARAMS.maxEvents) state.events.splice(0, state.events.length - PARAMS.maxEvents);
+    state.updatedAt = e.t;
+  }
+
+  function mergeLearn(into, from) {
+    if (!into.rel && from.rel) into.rel = from.rel;
+    into.business = into.business || from.business;
+    into.hidden = into.hidden || from.hidden;
+    for (const k of ['pos', 'neg', 'shown', 'rerolls', 'calls', 'talked', 'noAnswer', 'wouldHave', 'wouldNot']) into[k] += from[k] || 0;
+    into.notNow = Math.max(into.notNow || 0, from.notNow || 0);
+    for (const k of ['lastShownAt', 'lastRerollAt', 'lastAttemptAt', 'lastContactAt']) into[k] = Math.max(into[k] || 0, from[k] || 0);
+    into.contacts = uniq((into.contacts || []).concat(from.contacts || [])).sort((a, b) => a - b);
+  }
+
+  /** Replace the contact list from a new import, keeping everything learned about people still present. */
+  function importCards(state, cards, now) {
+    const t = now || Date.now();
+    const built = buildPeople(cards);
+    const prev = state.people || {};
+    const keyToOld = new Map();
+    for (const [oldId, p] of Object.entries(prev)) for (const num of p.numbers || []) if (num.key) keyToOld.set(num.key, oldId);
+    const next = {};
+    const reused = new Set();
+    let kept = 0;
+    let added = 0;
+    for (const p of built.people) {
+      next[p.id] = p;
+      if (prev[p.id]) { kept++; continue; }
+      const oldIds = uniq(p.numbers.map((num) => keyToOld.get(num.key)).filter(Boolean));
+      if (oldIds.length) {
+        kept++;
+        for (const oldId of oldIds) {
+          reused.add(oldId);
+          if (state.pending && state.pending.id === oldId) state.pending.id = p.id;
+          if (state.learn[oldId] && oldId !== p.id) {
+            if (state.learn[p.id]) mergeLearn(state.learn[p.id], state.learn[oldId]);
+            else state.learn[p.id] = state.learn[oldId];
+            delete state.learn[oldId];
+            for (const e of state.events) if (e.id === oldId) e.id = p.id;
+          }
+        }
+      } else added++;
+    }
+    const removed = Object.keys(prev).filter((id) => !next[id] && !reused.has(id)).length;
+    state.people = next;
+    state.importInfo = Object.assign({}, built.summary, { at: t, kept, added, removed });
+    state.updatedAt = t;
+    return state.importInfo;
+  }
+
+  // ---------------------------------------------------------------- scoring
+  function probability(person, L) {
+    const n0 = PARAMS.priorStrength;
+    const relA = L.rel ? (PARAMS.relationEvidence[L.rel] || 0) : 0;
+    const a = person.prior * n0 + L.pos + relA;
+    const b = (1 - person.prior) * n0 + L.neg;
+    return { p: a / (a + b), observations: L.pos + L.neg + (L.rel ? 2 : 0) };
+  }
+
+  function cadenceDays(L) {
+    const def = PARAMS.defaultCadenceDays[L.rel || 'none'] || PARAMS.defaultCadenceDays.none;
+    const ts = (L.contacts || []).slice().sort((x, y) => x - y);
+    const gaps = [];
+    for (let i = 1; i < ts.length; i++) {
+      const g = (ts[i] - ts[i - 1]) / DAY;
+      if (g >= 1) gaps.push(g);
+    }
+    let c = def;
+    if (gaps.length >= 2) c = median(gaps);
+    else if (gaps.length === 1) c = (gaps[0] + def) / 2;
+    return { days: clamp(c, 3, 365), learned: gaps.length >= 2 };
+  }
+
+  function recencyFactor(L, now) {
+    if (!L.lastContactAt) return { f: 1, known: false };
+    const days = Math.max(0, (now - L.lastContactAt) / DAY);
+    const cad = cadenceDays(L);
+    const ratio = days / cad.days;
+    const f = ratio < 1 ? Math.max(0.03, ratio * ratio) : Math.min(PARAMS.maxOverdueBoost, 1 + (ratio - 1) * 0.3);
+    return { f, known: true, days, cadence: cad.days, cadenceLearned: cad.learned, ratio };
+  }
+
+  /** How long a "Spin again" keeps someone out: longer for each "not now" in a row. */
+  function rerollCooldownMs(L) {
+    const streak = Math.max(1, L.notNow || 0);
+    const hours = PARAMS.rerollCooldownHours * Math.pow(PARAMS.rerollBackoff, streak - 1);
+    return Math.min(hours, PARAMS.rerollMaxDays * 24) * HOUR;
+  }
+
+  function suppression(L, now) {
+    if (L.lastRerollAt && now - L.lastRerollAt < rerollCooldownMs(L)) return 0;
+    let s = 1;
+    if (L.lastAttemptAt && now - L.lastAttemptAt < PARAMS.attemptCooldownHours * HOUR && !(L.lastContactAt >= L.lastAttemptAt)) s *= 0.05;
+    if (L.lastShownAt) {
+      const d = Math.max(0, (now - L.lastShownAt) / DAY);
+      s *= 1 - PARAMS.shownSuppression * Math.exp(-d / PARAMS.shownRecoveryDays);
+    }
+    return s;
+  }
+
+  function topOfMind(L) {
+    return clamp((1 + PARAMS.topOfMindStep * (L.wouldNot || 0)) / (1 + PARAMS.topOfMindStep * (L.wouldHave || 0)), PARAMS.topOfMindFloor, 1);
+  }
+
+  function weight(person, L, now) {
+    if (!person || !person.eligible || L.hidden || L.business) return 0;
+    const { p } = probability(person, L);
+    const r = recencyFactor(L, now).f;
+    const s = suppression(L, now);
+    const rw = L.rel ? (PARAMS.relationWeight[L.rel] || 1) : 1;
+    return Math.pow(p, PARAMS.sharpness) * r * s * rw * topOfMind(L);
+  }
+
+  function isUncertain(person, L) {
+    return L.shown === 0 && !L.rel && L.pos === 0 && L.neg === 0 &&
+      person.prior >= PARAMS.exploreMinPrior && person.prior <= PARAMS.exploreMaxPrior;
+  }
+
+  // ---------------------------------------------------------------- spinning
+  /**
+   * Pick someone. Returns { id, mode, spinId } or null when nobody is eligible.
+   * opts: { now, rng, exclude: [ids], record: true, fun: false }. A fun spin only changes the animation, never who is picked;
+   * it is marked so the stats can count it.
+   */
+  function spin(state, opts) {
+    const o = opts || {};
+    const now = o.now || Date.now();
+    const rng = o.rng || Math.random;
+    const exclude = new Set(o.exclude || []);
+    const main = [];
+    const explore = [];
+    let mainTotal = 0;
+    let exploreTotal = 0;
+    for (const id of Object.keys(state.people)) {
+      if (exclude.has(id)) continue;
+      const person = state.people[id];
+      const L = state.learn[id] || newLearn();
+      const w = weight(person, L, now);
+      if (!(w > 0)) continue;
+      main.push([id, w]);
+      mainTotal += w;
+      if (isUncertain(person, L)) {
+        const we = person.prior * suppression(L, now);
+        if (we > 0) { explore.push([id, we]); exploreTotal += we; }
+      }
+    }
+    if (!main.length) return null;
+    const rate = state.settings && typeof state.settings.exploration === 'number' ? state.settings.exploration : PARAMS.exploration;
+    let mode = 'main';
+    let pool = main;
+    let total = mainTotal;
+    if (explore.length && rng() < rate) { mode = 'explore'; pool = explore; total = exploreTotal; }
+    let r = rng() * total;
+    let pick = pool[pool.length - 1][0];
+    for (const [id, w] of pool) {
+      r -= w;
+      if (r <= 0) { pick = id; break; }
+    }
+    const spinId = ++state.seq;
+    if (o.record !== false) {
+      const L = learnOf(state, pick);
+      L.shown++;
+      L.lastShownAt = now;
+      const e = { t: now, k: 'show', id: pick, s: spinId };
+      if (mode === 'explore') e.m = 1;
+      if (o.fun) e.f = 1;
+      logEvent(state, e);
+    }
+    return { id: pick, mode, spinId };
+  }
+
+  const ACTIONS = ['reroll', 'call', 'talked', 'noAnswer', 'notCalled', 'wouldHave', 'wouldNot', 'spokeWeek', 'spokeMonth',
+    'friend', 'family', 'work', 'business', 'unbusiness', 'hide', 'unhide'];
+
+  function markContact(L, at) {
+    if (!(L.lastContactAt >= at)) L.lastContactAt = at;
+    L.contacts.push(at);
+    L.contacts.sort((a, b) => a - b);
+    if (L.contacts.length > 60) L.contacts.splice(0, L.contacts.length - 60);
+  }
+
+  /** Record what the person did. opts: { now, spinId, outcome } (outcome: 'talked' | 'noAnswer', for the would-question) */
+  function act(state, id, action, opts) {
+    if (!ACTIONS.includes(action)) throw new Error('Unknown action: ' + action);
+    const o = opts || {};
+    const now = o.now || Date.now();
+    const L = learnOf(state, id);
+    const e = { t: now, k: action, id };
+    if (o.spinId) e.s = o.spinId;
+    switch (action) {
+      case 'reroll': L.rerolls++; L.notNow = (L.notNow || 0) + 1; L.neg += PARAMS.rerollEvidence; L.lastRerollAt = now; break;
+      case 'call':
+        if (state.pending && state.pending.id === id && state.pending.s === (o.spinId || 0)) return L; // same call, tapped twice
+        L.calls++; L.notNow = 0; L.pos += PARAMS.callEvidence; L.lastAttemptAt = now; state.pending = { id, at: now, s: o.spinId || 0 };
+        break;
+      case 'talked': L.talked++; L.notNow = 0; L.pos += PARAMS.talkedEvidence; markContact(L, now); state.pending = null; break;
+      case 'noAnswer': L.noAnswer++; state.pending = null; break;
+      case 'notCalled':
+        if (L.calls > 0) { L.calls--; L.pos = Math.max(0, L.pos - PARAMS.callEvidence); }
+        L.lastAttemptAt = 0;
+        state.pending = null;
+        break;
+      case 'wouldHave': L.wouldHave++; if (o.outcome) e.v = o.outcome; break;
+      case 'wouldNot': L.wouldNot++; if (o.outcome) e.v = o.outcome; break;
+      case 'spokeWeek': markContact(L, now - PARAMS.spokeWeekDaysAgo * DAY); L.notNow = 0; L.pos += PARAMS.spokeEvidence; break;
+      case 'spokeMonth': markContact(L, now - PARAMS.spokeMonthDaysAgo * DAY); L.notNow = 0; L.pos += PARAMS.spokeEvidence; break;
+      case 'friend':
+      case 'family':
+      case 'work': L.rel = L.rel === action ? '' : action; e.v = L.rel; break;
+      case 'business': L.business = true; break;
+      case 'unbusiness': L.business = false; break;
+      case 'hide': L.hidden = true; break;
+      case 'unhide': L.hidden = false; break;
+      default: break;
+    }
+    logEvent(state, e);
+    return L;
+  }
+
+  // ---------------------------------------------------------------- explanations
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+  function roughDays(d) {
+    if (d < 1.5) return '1 day';
+    if (d < 13.5) return Math.round(d) + ' days';
+    if (d < 60) return plural(Math.round(d / 7), 'week');
+    return plural(Math.round(d / 30.4), 'month');
+  }
+
+  /** Why someone came up, in plain words, plus the numbers behind it. */
+  function explain(state, id, now, mode) {
+    const t = now || Date.now();
+    const person = state.people[id];
+    const L = state.learn[id] || newLearn();
+    const { p, observations } = probability(person, L);
+    const rec = recencyFactor(L, t);
+    const lines = [];
+    if (mode === 'explore') lines.push('Trying someone new. I don’t know much about them yet.');
+    if (L.rel) lines.push({ family: 'Family', friend: 'Friend', work: 'Work' }[L.rel]);
+    if (rec.known) {
+      const usual = rec.cadenceLearned ? ', usually every ' + roughDays(rec.cadence) : '';
+      lines.push(rec.days < 0.75 ? 'Talked today' + usual : 'Last talked about ' + roughDays(rec.days) + ' ago' + usual);
+    }
+    if (L.talked) lines.push('Talked ' + plural(L.talked, 'time') + ' through the app');
+    if (mode !== 'explore' && lines.length < 2) {
+      const positives = (person.reasons || []).filter((r) => r.w >= 0.6).slice(0, 2).map((r) => r.text);
+      if (positives.length) lines.push(positives.join(' · '));
+      else if (!lines.length) lines.push('Picked by chance from your contacts');
+    }
+    return {
+      lines,
+      probability: p,
+      confidence: observations < 1 ? 'new' : observations < 4 ? 'some' : 'good',
+      cadenceDays: cadenceDays(L).days,
+      daysSinceContact: rec.known ? rec.days : null,
+      weight: weight(person, L, t),
+    };
+  }
+
+  // ---------------------------------------------------------------- lists for the page
+  function eligibleCount(state) {
+    let n = 0;
+    for (const [id, p] of Object.entries(state.people)) {
+      const L = state.learn[id];
+      if (p.eligible && !(L && (L.hidden || L.business))) n++;
+    }
+    return n;
+  }
+
+  function hiddenPeople(state) {
+    const out = [];
+    for (const [id, L] of Object.entries(state.learn)) {
+      const p = state.people[id];
+      if (p && (L.hidden || L.business)) out.push({ id, name: p.name, why: L.business ? 'business' : 'hidden' });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Random plausible names for the spin animation (not recorded). */
+  function sampleNames(state, n, rng) {
+    const r = rng || Math.random;
+    const pool = Object.values(state.people).filter((p) => p.eligible && p.prior >= 0.3 && !p.nameFromNumber);
+    const out = [];
+    for (let i = 0; i < n && pool.length; i++) out.push(pool[Math.floor(r() * pool.length)].name);
+    return out;
+  }
+
+  // ---------------------------------------------------------------- stats
+  function stats(state, opts) {
+    const o = opts || {};
+    const now = o.now || Date.now();
+    const days = o.days === undefined ? 14 : o.days;
+    return Object.assign({ days }, statsBetween(state, days ? now - days * DAY : 0, now));
+  }
+
+  /** The first spin: the start of the two-week test. 0 if nothing yet. */
+  function testStart(state) {
+    for (const e of state.events) if (e.k === 'show') return e.t;
+    return 0;
+  }
+
+  /** Week i (0-based) of the test, counted from the first spin. null if it hasn't started. */
+  function weekStats(state, start, i, t) {
+    const from = start + i * 7 * DAY;
+    if (from > t) return null;
+    const s = statsBetween(state, from, Math.min(t, from + 7 * DAY - 1));
+    return { activeDays: s.activeDays, callDays: s.callDays, firstThreeDays: s.firstThreeDays, spins: s.spins, calls: s.calls, spinsPerCall: s.spinsPerCall, wouldNotHave: s.wouldNotHave };
+  }
+
+  /** Week 1 against week 2 of the test: is it getting better? */
+  function trend(state, now) {
+    const start = testStart(state);
+    if (!start) return null;
+    const t = now || Date.now();
+    return { start, week1: weekStats(state, start, 0, t), week2: weekStats(state, start, 1, t) };
+  }
+
+  /** Every week since the first spin (up to 12), so a longer test shows whether use holds up after the novelty. */
+  function weekly(state, now) {
+    const start = testStart(state);
+    if (!start) return [];
+    const t = now || Date.now();
+    const n = Math.min(12, Math.floor((t - start) / (7 * DAY)) + 1);
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(Object.assign({ week: i + 1 }, weekStats(state, start, i, t)));
+    return out;
+  }
+
+  /**
+   * Picks and corrections grouped by day-one signal, since the first spin: which kinds of contact get called,
+   * spun past or tagged. Counts by signal code only, never names or label names. People without any signal count as "none".
+   * people, business, dontSuggest and friendFamily describe the contact book now; shown, called and spunAgain count events.
+   */
+  function signalStats(state) {
+    const rows = {};
+    const row = (code) => rows[code] || (rows[code] = { people: 0, shown: 0, called: 0, spunAgain: 0, business: 0, dontSuggest: 0, friendFamily: 0 });
+    const codesOf = (p) => (p.signals && p.signals.length ? p.signals : ['none']);
+    for (const [id, p] of Object.entries(state.people)) {
+      if (!p.eligible) continue;
+      const L = state.learn[id];
+      for (const c of codesOf(p)) {
+        const r = row(c);
+        r.people++;
+        if (L && L.business) r.business++;
+        if (L && L.hidden) r.dontSuggest++;
+        if (L && (L.rel === 'friend' || L.rel === 'family')) r.friendFamily++;
+      }
+    }
+    const undone = new Set(state.events.filter((e) => e.k === 'notCalled' && e.s).map((e) => e.s));
+    const field = { show: 'shown', call: 'called', reroll: 'spunAgain' };
+    for (const e of state.events) {
+      const f = field[e.k];
+      const p = f && state.people[e.id];
+      if (!p || (e.k === 'call' && e.s && undone.has(e.s))) continue;
+      for (const c of codesOf(p)) row(c)[f]++;
+    }
+    const ordered = {};
+    for (const code of SIGNALS.concat('none')) if (rows[code]) ordered[code] = rows[code];
+    return ordered;
+  }
+
+  /** The blueprint's Phase 1 gate, asked of the person: would you spin again tomorrow? value: 'yes' | 'unsure' | 'no' */
+  function recordVerdict(state, value, now) {
+    if (!['yes', 'unsure', 'no'].includes(value)) throw new Error('Unknown verdict: ' + value);
+    logEvent(state, { t: now || Date.now(), k: 'verdict', v: value });
+  }
+
+  function latestVerdict(state, until) {
+    for (let i = state.events.length - 1; i >= 0; i--) {
+      const e = state.events[i];
+      if (e.k === 'verdict' && (!until || e.t <= until)) return e.v;
+    }
+    return null;
+  }
+
+  /** Forget what was learned (tags, hidden people, evidence). Keeps contacts and history. */
+  function resetLearning(state, now) {
+    state.learn = {};
+    state.pending = null;
+    logEvent(state, { t: now || Date.now(), k: 'resetLearning' });
+  }
+
+  function markReminderAdded(state, now) {
+    state.settings.reminderAddedAt = now || Date.now();
+  }
+
+  function markBackup(state, now) {
+    state.settings.lastBackupAt = now || Date.now();
+  }
+
+  function statsBetween(state, from, to) {
+    const now = to;
+    const ev = state.events.filter((e) => e.t >= from && e.t <= now);
+    const count = (k) => ev.filter((e) => e.k === k).length;
+    const undone = new Set(ev.filter((e) => e.k === 'notCalled' && e.s).map((e) => e.s));
+    const calledSpins = new Set(ev.filter((e) => e.k === 'call' && e.s && !undone.has(e.s)).map((e) => e.s));
+    const byDay = new Map();
+    for (const e of ev) {
+      if (e.k !== 'show') continue;
+      const d = dayKey(e.t);
+      if (!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d).push(e);
+    }
+    let firstThreeDays = 0;
+    for (const shows of byDay.values()) {
+      if (shows.slice(0, 3).some((e) => calledSpins.has(e.s))) firstThreeDays++;
+    }
+    const shows = ev.filter((e) => e.k === 'show');
+    const calls = count('call') - count('notCalled');
+    // Seconds from opening the spin to tapping Call: how quickly the app gets out of the way. A sitting starts with
+    // the first spin after a 30-minute break; the median keeps one call made hours later from skewing it.
+    const toCall = [];
+    let sittingStart = 0;
+    let lastShow = 0;
+    for (const e of ev) {
+      if (e.k === 'show') {
+        if (!lastShow || e.t - lastShow > 30 * 60000) sittingStart = e.t;
+        lastShow = e.t;
+      } else if (e.k === 'call' && sittingStart && !undone.has(e.s)) toCall.push((e.t - sittingStart) / 1000);
+    }
+    const callDays = new Set(ev.filter((e) => e.k === 'call' && !undone.has(e.s)).map((e) => dayKey(e.t))).size;
+    return {
+      activeDays: byDay.size,
+      callDays,
+      spins: shows.length,
+      explorationSpins: shows.filter((e) => e.m).length,
+      explorationCalls: (function () { const ex = new Set(shows.filter((e) => e.m).map((e) => e.s)); return [...calledSpins].filter((s) => ex.has(s)).length; })(),
+      funSpins: shows.filter((e) => e.f).length,
+      funCalls: (function () { const fun = new Set(shows.filter((e) => e.f).map((e) => e.s)); return [...calledSpins].filter((s) => fun.has(s)).length; })(),
+      calls,
+      talked: count('talked'),
+      noAnswer: count('noAnswer'),
+      wouldNotHave: count('wouldNot'),
+      wouldNotTalked: ev.filter((e) => e.k === 'wouldNot' && e.v !== 'noAnswer').length,
+      wouldHave: count('wouldHave'),
+      verdict: latestVerdict(state, now),
+      rerolls: count('reroll'),
+      firstThreeDays,
+      spinsPerCall: calls ? Math.round((shows.length / calls) * 10) / 10 : null,
+      secondsToCall: toCall.length ? Math.round(median(toCall)) : null,
+      peopleShown: new Set(shows.map((e) => e.id)).size,
+      peopleCalled: new Set(ev.filter((e) => e.k === 'call' && !undone.has(e.s)).map((e) => e.id)).size,
+      tags: {
+        spokeWeek: count('spokeWeek'), spokeMonth: count('spokeMonth'), friend: count('friend'), family: count('family'),
+        work: count('work'), business: count('business'), hide: count('hide'),
+      },
+    };
+  }
+
+  function sizeBucket(n) {
+    if (n < 100) return 'under 100';
+    if (n < 300) return '100–299';
+    if (n < 700) return '300–699';
+    if (n < 1500) return '700–1,499';
+    return '1,500+';
+  }
+
+  /** Counts only: no names, numbers or ids. Safe for a tester to send. */
+  function shareableStats(state, now) {
+    const t = now || Date.now();
+    const strip = (s) => {
+      const o = Object.assign({}, s);
+      delete o.days;
+      return o;
+    };
+    return {
+      app: 'Keep in Touch',
+      engine: VERSION,
+      date: new Date(t).toISOString().slice(0, 10),
+      contactBook: sizeBucket(Object.keys(state.people).length),
+      canComeUp: sizeBucket(eligibleCount(state)),
+      last14Days: strip(stats(state, { now: t, days: 14 })),
+      allTime: strip(stats(state, { now: t, days: 0 })),
+      trend: (function () {
+        const tr = trend(state, t);
+        return tr ? { start: new Date(tr.start).toISOString().slice(0, 10), week1: tr.week1, week2: tr.week2 } : null;
+      })(),
+      weeks: weekly(state, t),
+      bySignal: signalStats(state),
+      // yes/no only: did they tap "Add to calendar" on this device (an iPhone that added it from Safari shows no)
+      reminderAdded: !!(state.settings && state.settings.reminderAddedAt),
+      // which spin they chose for every day (Settings): a style name, nothing personal
+      everydaySpin: (state.settings && state.settings.everyday) || 'reel',
+    };
+  }
+
+  /** The same counts as one message a tester can paste into WhatsApp or an email. */
+  function shareableText(state, now, appVersion) {
+    const sh = shareableStats(state, now);
+    const verdictWord = { yes: 'Yes', unsure: 'Not sure', no: 'No' };
+    const line = (s) => 'used ' + plural(s.activeDays, 'day') + ' · ' + plural(s.spins, 'spin') + ' · ' + plural(s.calls, 'call') +
+      ' · ' + s.wouldNotHave + ' wouldn’t have happened otherwise (' + plural(s.wouldNotTalked, 'conversation') + ')' +
+      ' · a call from the first 3 spins on ' + plural(s.firstThreeDays, 'day');
+    const out = ['Keep in Touch stats, ' + sh.date + ' (v' + (appVersion || '?') + ', engine ' + VERSION + ')'];
+    if (!sh.trend) return out.concat('No spins yet.').join('\n');
+    out.push('Since the first spin on ' + sh.trend.start + ': ' + line(sh.allTime) +
+      (sh.allTime.verdict ? ' · spin again tomorrow: ' + verdictWord[sh.allTime.verdict] : ''));
+    out.push('Last 14 days: ' + line(sh.last14Days));
+    out.push('Someone new to try: ' + plural(sh.allTime.explorationSpins, 'spin') + ', ' + plural(sh.allTime.explorationCalls, 'call'));
+    out.push('Everyday spin: ' + sh.everydaySpin + ' · fun spins: ' + sh.allTime.funSpins + ', calls from them: ' + sh.allTime.funCalls);
+    if (sh.allTime.secondsToCall !== null) out.push('Seconds from first spin to Call (median): ' + sh.allTime.secondsToCall);
+    out.push('By week (days used · calls · wouldn’t have happened): ' +
+      sh.weeks.map((w) => 'w' + w.week + ' ' + w.activeDays + '·' + w.calls + '·' + w.wouldNotHave).join(' | '));
+    out.push('Reminder added to a calendar: ' + (sh.reminderAdded ? 'yes' : 'no'));
+    out.push('Contacts: ' + sh.contactBook + ', can come up: ' + sh.canComeUp);
+    out.push('By day-one signal (people · shown · called · spun again · business · don’t suggest · friend or family):');
+    for (const [code, r] of Object.entries(sh.bySignal)) {
+      if (r.shown || r.business || r.dontSuggest || r.friendFamily) {
+        out.push(code + ' ' + [r.people, r.shown, r.called, r.spunAgain, r.business, r.dontSuggest, r.friendFamily].join('·'));
+      }
+    }
+    return out.join('\n');
+  }
+
+  // ---------------------------------------------------------------- saving and loading
+  // Saving keeps only source data. Everything derived (day-one guess, reasons, number types, eligibility)
+  // is recomputed on load, so a saved file stays small and engine improvements apply to old data.
+  function compactPerson(p) {
+    const o = { name: p.name };
+    for (const k of ['fnRaw', 'given', 'family', 'nickname', 'org', 'title']) if (p[k]) o[k] = p[k];
+    if (p.categories && p.categories.length) o.categories = p.categories;
+    if (p.emails && p.emails.length) o.emails = p.emails;
+    for (const k of ['bday', 'events', 'hasPhoto', 'nameFromNumber']) if (p[k]) o[k] = 1;
+    if (p.related) o.related = p.related;
+    if (p.sources > 1) o.sources = p.sources;
+    o.numbers = (p.numbers || []).map((n) => {
+      const x = { raw: n.raw };
+      if (n.types && n.types.length) x.types = n.types;
+      if (n.label) x.label = n.label;
+      if (n.pref) x.pref = 1;
+      return x;
+    });
+    return o;
+  }
+
+  function expandPerson(id, o) {
+    const numbers = (o.numbers || []).map((n) => classifyNumber({ raw: n.raw, types: n.types || [], label: n.label || '', pref: !!n.pref }));
+    const p = {
+      id, name: o.name || '', fnRaw: o.fnRaw || '', given: o.given || '', family: o.family || '', nickname: o.nickname || '',
+      org: o.org || '', title: o.title || '', categories: o.categories || [], emails: o.emails || [],
+      bday: !!o.bday, events: !!o.events, related: o.related || 0, hasPhoto: !!o.hasPhoto,
+      nameFromNumber: !!o.nameFromNumber, sources: o.sources || 1, numbers,
+    };
+    p.best = bestNumberIndex(numbers);
+    const pr = dayOnePrior(p);
+    p.prior = pr.prob;
+    p.reasons = pr.reasons;
+    p.signals = pr.signals;
+    p.ineligible = baseIneligibility(p);
+    p.eligible = !p.ineligible;
+    return p;
+  }
+
+  function compactLearn(L) {
+    const d = newLearn();
+    const o = {};
+    for (const k of Object.keys(L)) {
+      if (k === 'contacts') { if (L.contacts && L.contacts.length) o.contacts = L.contacts; continue; }
+      if (L[k] !== d[k]) o[k] = L[k];
+    }
+    return o;
+  }
+
+  function serialize(state) {
+    const people = {};
+    for (const [id, p] of Object.entries(state.people)) people[id] = compactPerson(p);
+    const learn = {};
+    for (const [id, L] of Object.entries(state.learn)) {
+      const c = compactLearn(L);
+      if (Object.keys(c).length) learn[id] = c;
+    }
+    return JSON.stringify(Object.assign({}, state, { schema: SCHEMA, engine: VERSION, people, learn }));
+  }
+
+  function deserialize(text) {
+    const s = typeof text === 'string' ? JSON.parse(text) : text;
+    if (!s || s.app !== 'keep-in-touch' || typeof s.people !== 'object' || typeof s.learn !== 'object' || !Array.isArray(s.events)) {
+      throw new Error('This file is not a Keep in Touch backup.');
+    }
+    if (s.schema > SCHEMA) throw new Error('This backup comes from a newer version of Keep in Touch.');
+    const people = {};
+    for (const [id, o] of Object.entries(s.people)) people[id] = expandPerson(id, o);
+    s.people = people;
+    s.schema = SCHEMA;
+    const d = defaultSettings();
+    s.settings = Object.assign(d, s.settings || {});
+    s.settings.reminder = Object.assign(defaultSettings().reminder, (s.settings && s.settings.reminder) || {});
+    s.seq = s.seq || s.events.reduce((m, e) => Math.max(m, e.s || 0), 0);
+    for (const id of Object.keys(s.learn)) s.learn[id] = Object.assign(newLearn(), s.learn[id]);
+    return s;
+  }
+
+  return {
+    VERSION, SCHEMA, PARAMS, KEYWORDS, SIGNALS,
+    createState, importCards, buildPeople, classifyNumber, classifyLabels, dayOnePrior,
+    spin, act, explain, stats, statsBetween, trend, weekly, signalStats, testStart, recordVerdict, latestVerdict, resetLearning, markBackup, markReminderAdded, defaultSettings,
+    shareableStats, shareableText, eligibleCount, hiddenPeople, sampleNames,
+    probability, weight, cadenceDays, recencyFactor, suppression, topOfMind, learnOf,
+    serialize, deserialize, mulberry32, dayKey,
+  };
+});
+</script>
+<script>
+(function () {
+  'use strict';
+  var E = window.KITEngine;
+  var V = window.KITVcard;
+  var APP_VERSION = '0.1.4';
+  var DAY = 86400000;
+  var STORE_KEY = 'kit.v0.state'; // unchanged from v0 so existing progress carries over
+  var reduced = false;
+  try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  // Where the page is running decides what it can do.
+  var framed = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+  var hosted = /^https?:$/.test(location.protocol) && !framed; // a real web address (e.g. GitHub Pages)
+  var standalone = (function () {
+    try { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; } catch (e) { return false; }
+  })();
+  var ua = navigator.userAgent || '';
+  var iosDevice = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var appleDevice = iosDevice || /Macintosh/.test(ua); // Apple Calendar is the calendar there
+  // An iPhone hands a calendar file to Apple Calendar only from Safari itself: not from the home-screen app or another browser.
+  var appleCalBlocked = iosDevice && (standalone || /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua));
+
+  // Example contacts so the page shows what it does before you import. Numbers are in the
+  // 555-01xx range, which is reserved for fiction.
+  var SAMPLE = [
+    ['Mom', '', '', '+1 202-555-0101', 'CELL', 'myContacts,starred', true],
+    ['Dad', '', '', '+1 202-555-0102', 'CELL', 'myContacts,starred', false],
+    ['Grandma Ruth', 'Ruth', 'Grandma', '+1 202-555-0103', 'HOME', 'myContacts,Family', true],
+    ['Rachel Stern', 'Rachel', 'Stern', '+1 202-555-0104', 'CELL', 'myContacts,starred', true],
+    ['Rachel', 'Rachel', '', '2025550104', 'CELL', 'myContacts', false],
+    ['Josh Katz', 'Josh', 'Katz', '+1 202-555-0105', 'CELL', 'myContacts', false],
+    ['David Freeman', 'David', 'Freeman', '+1 202-555-0106', 'CELL', 'myContacts', true],
+    ['Sarah Klein', 'Sarah', 'Klein', '+1 202-555-0107', 'CELL', 'myContacts', false],
+    ['Emily Clarke', 'Emily', 'Clarke', '+1 202-555-0108', 'CELL', 'myContacts', false],
+    ['Noah Brown', 'Noah', 'Brown', '+1 202-555-0109', 'CELL', 'myContacts,Friends', false],
+    ['Olivia Hart', 'Olivia', 'Hart', '+1 202-555-0110', 'CELL', 'myContacts', true],
+    ['Mike from soccer', 'Mike from soccer', '', '+1 202-555-0111', 'CELL', 'myContacts', false],
+    ['Jake M', 'Jake', 'M', '+1 202-555-0112', 'CELL', 'myContacts', false],
+    ['Ethan Ross', 'Ethan', 'Ross', '+1 202-555-0113', 'CELL', 'myContacts', false],
+    ['Tara White', 'Tara', 'White', '+1 202-555-0114', 'CELL', 'myContacts,Friends', false],
+    ['Ben Adler', 'Ben', 'Adler', '+1 202-555-0115', 'CELL', 'myContacts', false],
+    ['Dana Lewis', 'Dana', 'Lewis', '+1 202-555-0116', 'WORK', 'myContacts', false, 'Acme Ltd'],
+    ['Steve Plumber', 'Steve', 'Plumber', '+1 202-555-0117', 'CELL', 'myContacts', false],
+    ['Dr. Katz', 'Katz', '', '+1 202-555-0118', 'WORK', 'myContacts', false],
+    ['Pizza Hut', '', '', '+1 202-555-0119', 'WORK', 'myContacts', false, 'Pizza Hut'],
+    ['Main Street Garage', '', '', '+1 202-555-0120', 'WORK', 'myContacts', false],
+    ['Josh camp 2015', 'Josh camp 2015', '', '+1 202-555-0121', 'CELL', 'myContacts', false],
+    ['Pizza Line', '', '', '*3030', '', 'myContacts', false],
+    ['Laura Gold', 'Laura', 'Gold', '', '', 'myContacts', false],
+  ];
+  function sampleText() {
+    return SAMPLE.map(function (r) {
+      var lines = ['BEGIN:VCARD', 'VERSION:3.0', 'FN:' + r[0], 'N:' + (r[2] || '') + ';' + (r[1] || '') + ';;;'];
+      if (r[3]) lines.push('TEL' + (r[4] ? ';TYPE=' + r[4] : '') + ':' + r[3]);
+      if (!r[3]) lines.push('EMAIL:laura@example.com');
+      if (r[6]) lines.push('BDAY:1990-01-01');
+      if (r[7]) lines.push('ORG:' + r[7]);
+      lines.push('CATEGORIES:' + r[5], 'END:VCARD');
+      return lines.join('\r\n');
+    }).join('\r\n');
+  }
+
+  // ------------------------------------------------------------ state and saving
+  var state = null;
+  var demo = false;
+  var storageOK = true;
+  var lastSaved = 0;
+  var persisted = null;          // has the browser agreed to keep this site's data?
+  var installPrompt = null;      // Chrome's install offer, when it makes one
+  var backupSnoozed = false;
+  var ui = { view: 'spin', mode: 'idle', pick: null, outcome: '', would: '', fromEarlier: false, spinning: false, tagged: '', why: null };
+
+  function storageAvailable() {
+    try { localStorage.setItem('kit.test', '1'); localStorage.removeItem('kit.test'); return true; } catch (e) { return false; }
+  }
+  function loadSaved() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) return E.deserialize(raw);
+    } catch (e) {}
+    return null;
+  }
+  function save() {
+    if (demo || !state) return;
+    try { localStorage.setItem(STORE_KEY, E.serialize(state)); storageOK = true; lastSaved = Date.now(); }
+    catch (e) { storageOK = false; }
+    renderBanner();
+    renderSaved();
+  }
+  function demoState() {
+    var s = E.createState(Date.now());
+    E.importCards(s, V.parse(sampleText()).cards, Date.now());
+    return s;
+  }
+  function askToKeepData() {
+    try {
+      if (!navigator.storage || !navigator.storage.persist) return;
+      navigator.storage.persisted().then(function (already) {
+        if (already) { persisted = true; return; }
+        return navigator.storage.persist().then(function (ok) { persisted = !!ok; });
+      }).then(function () { if (ui.view === 'settings') renderSettings(); }, function () {});
+    } catch (e) {}
+  }
+
+  // ------------------------------------------------------------ files out (backup, stats)
+  var downloadsReady = (window.claude && typeof window.claude.use === 'function')
+    ? window.claude.use('downloads').then(function (d) { return d; }, function () { return null; })
+    : Promise.resolve(null);
+
+  function offerFile(filename, text, title) {
+    return downloadsReady.then(function (dl) {
+      if (dl) {
+        return dl.save({ filename: filename, data: text }).then(function () { return 'saved'; }, function (err) {
+          if (err && err.code === 'declined') return 'declined';
+          copySheet(title, text);
+          return 'shown';
+        });
+      }
+      if (!framed) {
+        try {
+          var url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+          var a = document.createElement('a');
+          a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+          return 'saved';
+        } catch (e) {}
+      }
+      copySheet(title, text);
+      return 'shown';
+    });
+  }
+  function saveBackup() {
+    if (demo) return;
+    offerFile('keep-in-touch-backup-' + isoDay(Date.now()) + '.json', E.serialize(state), 'Your backup').then(function (r) {
+      if (r === 'saved') { E.markBackup(state, Date.now()); save(); toast('Backup saved to your Downloads.'); render(); }
+    });
+  }
+
+  function copyText(text, onDone, selectEl) {
+    var done = function (ok) { if (onDone) onDone(ok); };
+    try {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { selectAll(selectEl); done(false); });
+    } catch (e) { selectAll(selectEl); done(false); }
+  }
+  function selectAll(el) {
+    if (!el) return;
+    try {
+      if (el.select) { el.focus(); el.select(); return; }
+      var r = document.createRange(); r.selectNodeContents(el);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    } catch (e) {}
+  }
+
+  // ------------------------------------------------------------ helpers
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function firstName(name) { var n = String(name || '').trim(); return n.split(/\s+/)[0] || n; }
+  // "Mike" from "Mike Carter"; the full name when the first word wouldn't read well ("Dr.", "+1", "Mr.").
+  function shortName(p) {
+    if (!p) return '';
+    var f = firstName(p.name);
+    if (p.nameFromNumber || f.length < 2 || /[\d.'’]$/.test(f) || /\d/.test(f)) return p.name;
+    return f;
+  }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function fmtTime(t) {
+    var d = new Date(t); var h = d.getHours();
+    return ((h % 12) || 12) + ':' + pad(d.getMinutes()) + ' ' + (h < 12 ? 'a.m.' : 'p.m.');
+  }
+  function fmtClock(hhmm) {
+    var p = String(hhmm || '20:00').split(':'); var h = parseInt(p[0], 10) || 0;
+    return ((h % 12) || 12) + ':' + pad(parseInt(p[1], 10) || 0) + ' ' + (h < 12 ? 'a.m.' : 'p.m.');
+  }
+  function fmtDate(t) { return new Date(t).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+  function fmtShort(t) { return new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+  function dayLabel(t) {
+    var k = E.dayKey(t); var now = Date.now();
+    if (k === E.dayKey(now)) return 'Today';
+    if (k === E.dayKey(now - DAY)) return 'Yesterday';
+    return fmtDate(t);
+  }
+  function savedWhen(t) { return E.dayKey(t) === E.dayKey(Date.now()) ? fmtTime(t) : fmtShort(t) + ', ' + fmtTime(t); }
+  function isoDay(t) { var d = new Date(t); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function numberLabel(n) {
+    if (n.label) return n.label;
+    if (n.mobile && !n.workish) return 'Mobile';
+    if (n.workish) return 'Work';
+    if (n.types.indexOf('HOME') >= 0) return 'Home';
+    return 'Phone';
+  }
+  function bestNumber(p) { return p && p.best >= 0 ? p.numbers[p.best] : null; }
+  function telHref(raw) { return 'tel:' + String(raw).replace(/[^\d+]/g, ''); }
+  function plural(n, word, many) { return n + ' ' + (n === 1 ? word : (many || word + 's')); }
+  function tile(big, label) { return '<div class="tile"><b>' + big + '</b><span>' + esc(label) + '</span></div>'; }
+  function fact(label, value) { return '<li><span>' + esc(label) + '</span><span>' + value + '</span></li>'; }
+  function status(ok, text) { return '<li><span class="dot ' + (ok === true ? 'ok' : ok === false ? 'warn' : '') + '" aria-hidden="true"></span><span>' + text + '</span></li>'; }
+
+  // ------------------------------------------------------------ the daily reminder
+  var DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var RRULE_DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  // A moment from the day you already have makes the reminder an if-then plan ("After dinner: who are you calling today?").
+  // Each comes with a usual time, which you can change.
+  var MOMENTS = [['After dinner', '19:30'], ['On my drive home', '17:30'], ['After work', '18:00'], ['Morning coffee', '08:00']];
+  var ownMoment = false; // "Your own" was tapped, so the text box shows even before anything is typed
+  function isPresetMoment(m) { return MOMENTS.some(function (x) { return x[0] === m; }); }
+  function reminderTitle(rem) { return rem.moment ? rem.moment + ': who are you calling today?' : 'Who are you calling today?'; }
+  function appAddress() { return hosted ? location.origin + location.pathname.replace(/index\.html$/, '') : ''; }
+  function reminderDetails() { var a = appAddress(); return a ? 'Open Keep in Touch and spin: ' + a : 'Open Keep in Touch and spin.'; }
+  function stamp(x) { return x.getFullYear() + pad(x.getMonth() + 1) + pad(x.getDate()) + 'T' + pad(x.getHours()) + pad(x.getMinutes()) + '00'; }
+  function reminderStart(rem) {
+    var days = (rem.days || []).slice().sort();
+    if (!days.length) return null;
+    var parts = String(rem.time || '20:00').split(':');
+    var hh = parseInt(parts[0], 10) || 0; var mm = parseInt(parts[1], 10) || 0;
+    var d = new Date(); d.setHours(hh, mm, 0, 0);
+    for (var i = 0; i < 8; i++) {
+      if (days.indexOf(d.getDay()) >= 0 && d.getTime() > Date.now()) break;
+      d.setDate(d.getDate() + 1); d.setHours(hh, mm, 0, 0);
+    }
+    return { start: d, rrule: 'FREQ=WEEKLY;BYDAY=' + days.map(function (n) { return RRULE_DAYS[n]; }).join(',') };
+  }
+  function reminderUrl(rem) {
+    var r = reminderStart(rem);
+    if (!r) return '';
+    var tz = 'UTC';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (e) {}
+    var params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: reminderTitle(rem),
+      details: reminderDetails(),
+      dates: stamp(r.start) + '/' + stamp(new Date(r.start.getTime() + 5 * 60000)),
+      ctz: tz,
+      recur: 'RRULE:' + r.rrule,
+    });
+    return 'https://calendar.google.com/calendar/render?' + params.toString();
+  }
+  // The same event as a calendar file, for Apple Calendar. It's made on the device; nothing is sent anywhere.
+  // Local ("floating") time, so it rings at the same clock time wherever you are, with an alert when it starts.
+  function reminderIcs(rem) {
+    var r = reminderStart(rem);
+    if (!r) return '';
+    var text = function (s) { return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); };
+    var now = new Date();
+    var utc = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate()) + 'T' + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + pad(now.getUTCSeconds()) + 'Z';
+    var lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Keep in Touch//Daily reminder//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+      'BEGIN:VEVENT', 'UID:kit-reminder-' + now.getTime() + '@keep-in-touch', 'DTSTAMP:' + utc, 'DTSTART:' + stamp(r.start), 'DURATION:PT5M',
+      'RRULE:' + r.rrule, 'SUMMARY:' + text(reminderTitle(rem)), 'DESCRIPTION:' + text(reminderDetails()), 'TRANSP:TRANSPARENT',
+    ];
+    if (appAddress()) lines.push('URL:' + appAddress());
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + text(reminderTitle(rem)), 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR');
+    return lines.map(foldIcs).join('\r\n') + '\r\n';
+  }
+  // Calendar files keep lines to 75 bytes; longer ones continue on the next line after a space.
+  function foldIcs(line) {
+    var out = '', bytes = 0;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line.charAt(i);
+      var code = line.charCodeAt(i);
+      var size = code < 0x80 ? 1 : code < 0x800 ? 2 : 3; // UTF-8 bytes
+      if (code >= 0xd800 && code <= 0xdbff && i + 1 < line.length) { ch += line.charAt(++i); size = 4; }
+      if (bytes + size > 75) { out += '\r\n '; bytes = 1; }
+      out += ch; bytes += size;
+    }
+    return out;
+  }
+  var icsUrl = '';
+  function reminderIcsHref(rem) {
+    if (icsUrl) { try { URL.revokeObjectURL(icsUrl); } catch (e) {} icsUrl = ''; }
+    var ics = reminderIcs(rem);
+    if (!ics || framed) return '#';
+    try { icsUrl = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' })); } catch (e) { return '#'; }
+    return icsUrl;
+  }
+  function updateReminderLinks() {
+    var rem = state.settings.reminder;
+    if ($('rem-add')) $('rem-add').href = reminderUrl(rem) || '#';
+    if ($('rem-ics') && !appleCalBlocked) $('rem-ics').href = reminderIcsHref(rem);
+    if ($('rem-preview')) $('rem-preview').textContent = '“' + reminderTitle(rem) + '”';
+  }
+  function appleCalHelp() {
+    var address = appAddress() || 'the Keep in Touch address';
+    openSheet('<h3 id="sheet-title">Add it from Safari</h3>' +
+      '<p>An iPhone only lets Safari hand a reminder to Apple Calendar, not an app on the home screen. It takes a minute:</p>' +
+      '<ol class="steps"><li>Open <b>Safari</b> and go to <span class="number" id="sheet-address"></span></li><li>Tap <b>Settings</b>, set the reminder the same way, and tap <b>Add to Apple Calendar</b>.</li></ol>' +
+      '<p class="fine">You don’t need to bring in your contacts there. Your reminder then lives in Apple Calendar.</p>' +
+      '<div class="btn-row"><button class="btn btn-ink" type="button" id="sheet-copy">Copy the address</button><button class="btn" type="button" data-close>Close</button></div>',
+      function (root) {
+        root.querySelector('#sheet-address').textContent = address;
+        root.querySelector('#sheet-copy').addEventListener('click', function (ev) {
+          var btn = ev.currentTarget;
+          copyText(address, function (ok) { btn.textContent = ok ? 'Copied' : 'Selected. Copy it now'; }, root.querySelector('#sheet-address'));
+        });
+      });
+  }
+
+  // ------------------------------------------------------------ toast and sheet
+  var toastTimer = 0;
+  var toastUndo = null;
+  function toast(text, undo) {
+    $('toast-text').textContent = text;
+    toastUndo = undo || null;
+    $('toast-undo').hidden = !undo;
+    $('toast').hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $('toast').hidden = true; toastUndo = null; }, undo ? 7000 : 3500);
+  }
+  function openSheet(html, bind) {
+    $('sheet').innerHTML = html;
+    $('sheet-back').hidden = false;
+    if (bind) bind($('sheet'));
+    var first = $('sheet').querySelector('button, textarea');
+    if (first) first.focus();
+  }
+  function closeSheet() { $('sheet-back').hidden = true; $('sheet').innerHTML = ''; }
+  function copySheet(title, text) {
+    openSheet('<h3 id="sheet-title">' + esc(title) + '</h3><p class="fine">This view can’t save files. Copy the text and keep it in a note or an email to yourself.</p>' +
+      '<textarea id="sheet-text" readonly></textarea><div class="btn-row"><button class="btn btn-ink" type="button" id="sheet-copy">Copy</button><button class="btn" type="button" data-close>Close</button></div>',
+      function (root) {
+        root.querySelector('#sheet-text').value = text;
+        root.querySelector('#sheet-copy').addEventListener('click', function (ev) {
+          var btn = ev.currentTarget;
+          copyText(text, function (ok) { btn.textContent = ok ? 'Copied' : 'Selected. Copy it now'; }, root.querySelector('#sheet-text'));
+        });
+      });
+  }
+
+  // ------------------------------------------------------------ the spin flow
+  function currentPerson() { return ui.pick ? state.people[ui.pick.id] : null; }
+
+  // kind: 'full' (the big Spin), 'quick' (Spin again) or 'fun' (Fun spin). A fun spin only changes the animation;
+  // the engine picks exactly as always and marks the spin so the stats can count it.
+  function spinNow(kind) {
+    if (toastUndo) { toastUndo = null; $('toast').hidden = true; } // an undo can't reach back past a new spin
+    var r = E.spin(state, { now: Date.now(), fun: kind === 'fun' });
+    ui.fromEarlier = false;
+    ui.outcome = '';
+    ui.would = '';
+    ui.tagged = '';
+    ui.why = null;
+    if (!r) { ui.pick = null; ui.mode = 'empty'; save(); render(); return; }
+    ui.pick = r;
+    ui.mode = 'picked';
+    save();
+    animate(kind);
+  }
+
+  // Spin again is quick (0.4 s): people spin several times per call, and the wait adds up.
+  // But the first spin of a day is always the full reel, whichever button starts it.
+  function spinsToday() {
+    var today = E.dayKey(Date.now());
+    var n = 0;
+    for (var i = state.events.length - 1; i >= 0; i--) {
+      var e = state.events[i];
+      if (E.dayKey(e.t) !== today) break;
+      if (e.k === 'show') n++;
+    }
+    return n;
+  }
+
+  // ------------------------------------------------------------ how a spin looks
+  // Every spin plays on a layer over the card. The card underneath is already laid out as it will land,
+  // so when the layer fades away nothing moves. Every style lands on the same name line as the reel.
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+  function rand(n) { return Math.floor(Math.random() * n); }
+  function frames(duration, fn) {
+    return new Promise(function (resolve) {
+      var t0 = performance.now();
+      var step = function (now) { var t = Math.min(1, (now - t0) / duration); fn(t, now - t0); if (t < 1) requestAnimationFrame(step); else resolve(); };
+      requestAnimationFrame(step);
+    });
+  }
+  function play(node, keyframes, opts) {
+    var a = node.animate(keyframes, opts);
+    return a.finished ? a.finished.catch(function () {}) : wait(opts.duration);
+  }
+  function initials(name) { var w = String(name).trim().split(/\s+/); return (w[0].charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : '')).toUpperCase(); }
+
+  // Where the name will sit, relative to the layer, plus names to show on the way.
+  function spinGeom(fx) {
+    var nameEl = $('pname');
+    var fr = fx.getBoundingClientRect(), nr = nameEl.getBoundingClientRect();
+    var range = document.createRange(); range.selectNodeContents(nameEl);
+    var tr = range.getBoundingClientRect();
+    var name = nameEl.textContent;
+    return {
+      W: fx.clientWidth, H: fx.clientHeight, top: nr.top - fr.top, left: nr.left - fr.left,
+      h: parseFloat(getComputedStyle(nameEl).lineHeight) || nr.height,
+      textLeft: (tr.width ? tr.left : nr.left) - fr.left, textTop: (tr.height ? tr.top : nr.top) - fr.top, textH: tr.height || nr.height,
+      name: name, eyebrow: $('eyebrow').textContent, number: $('pnumber').textContent || '',
+      // other people's names, each once while the book allows
+      names: function (n) {
+        var seen = {}, out = [], pool = E.sampleNames(state, n * 3 + 10).filter(function (x) { return x !== name; });
+        pool.forEach(function (x) { if (!seen[x] && out.length < n) { seen[x] = 1; out.push(x); } });
+        for (var i = 0; out.length < n; i++) out.push(pool.length ? pool[i % pool.length] : name);
+        return out;
+      },
+    };
+  }
+  // Fly a name from where it is on the layer onto the card's name line.
+  function flyToName(fx, fromEl, g, duration) {
+    var fr = fx.getBoundingClientRect();
+    var range = document.createRange(); range.selectNodeContents(fromEl);
+    var from = range.getBoundingClientRect();
+    var fly = el('p', 'fly', g.name);
+    fly.setAttribute('dir', 'auto');
+    fly.style.left = g.textLeft + 'px';
+    fly.style.top = g.top + 'px';
+    fx.appendChild(fly);
+    var k = (from.height || 16) / g.textH;
+    var dx = (from.left - fr.left) - g.textLeft, dy = (from.top - fr.top) - (g.textTop - g.top) * k - g.top;
+    fromEl.style.visibility = 'hidden';
+    return play(fly, [{ transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ')' }, { transform: 'none' }], { duration: duration, easing: 'cubic-bezier(.3,.7,.2,1)', fill: 'forwards' });
+  }
+  function eyebrowOn(fx, g) { fx.appendChild(el('p', 'eyebrow', g.eyebrow)); }
+
+  // The everyday reel: a wall of names streams up through the whole card, slows down, and the pick lands on the name line.
+  function reelSpin(fx, g, quick) {
+    var mask = el('div', 'fx-mask'), strip = el('div', 'reel-strip');
+    var before = quick ? 6 : 28;
+    var rows = g.names(before).concat([g.name], g.names(10));
+    rows.forEach(function (name, i) {
+      var row = el('div', 'reel-row' + (i % 2 ? ' alt' : ''), name);
+      row.setAttribute('dir', 'auto');
+      row.style.height = row.style.lineHeight = g.h + 'px';
+      strip.appendChild(row);
+    });
+    mask.appendChild(strip); fx.appendChild(mask);
+    var end = g.top - before * g.h, duration = quick ? 360 : 1600;
+    var move = play(strip, [
+      { transform: 'translateY(0px)', easing: quick ? 'cubic-bezier(.25,.6,.3,1)' : 'cubic-bezier(.12,.7,.2,1)' },
+      { transform: 'translateY(' + (end - g.h * (quick ? 0.12 : 0.25)) + 'px)', offset: 0.88, easing: 'ease-in-out' },
+      { transform: 'translateY(' + end + 'px)' },
+    ], { duration: duration, fill: 'forwards' });
+    if (!quick) play(strip, [{ filter: 'blur(0px)' }, { filter: 'blur(1.6px)', offset: 0.1 }, { filter: 'blur(0.9px)', offset: 0.45 }, { filter: 'blur(0px)', offset: 0.8 }, { filter: 'blur(0px)' }], { duration: duration });
+    return move.then(function () { strip.children[before].classList.add('chosen'); fx.classList.add('landed'); return wait(quick ? 80 : 200); });
+  }
+
+  var FUN = {
+    // names circle in a ring whose front is the name line; as the ring slows, today's person peels off
+    // onto the name line and only grows into place, so nothing jumps across the card
+    orbit: function (fx, g) {
+      var n = 9, list = g.names(n - 1), pick = rand(n);
+      list.splice(pick, 0, g.name);
+      var pills = list.map(function (name, i) { var s = el('span', 'pill' + (i === pick ? ' chosen' : ''), name); s.setAttribute('dir', 'auto'); s.style.opacity = '0'; fx.appendChild(s); return s; });
+      var front = -Math.PI / 2, pw = pills[pick].offsetWidth;
+      var ry = Math.max(50, Math.min((g.H - g.top) / 2 - 40, 105)), rx = Math.min(g.W / 2 - 62, 125);
+      var cx = g.W / 2, cy = g.top + g.h / 2 + ry;
+      var tx = g.textLeft - 12 + pw / 2, ty = g.top + g.h / 2; // where the pill sits with its text on the name line
+      var base = list.map(function (_, i) { return (i / n) * Math.PI * 2; });
+      var lead = front - base[pick]; lead = ((lead % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      var total = lead + Math.PI * 4, angle = 0;
+      var place = function (rf, fade, peel) {
+        pills.forEach(function (s, i) {
+          var th = base[i] + angle, depth = (Math.cos(th - front) + 1) / 2;
+          var x = cx + rx * rf * Math.cos(th), y = cy + ry * rf * Math.sin(th), sc = 0.68 + 0.42 * depth;
+          if (i === pick) { x = cx + rx * Math.cos(th); y = cy + ry * Math.sin(th); x += (tx - x) * peel; y += (ty - y) * peel; sc += (1 - sc) * peel; }
+          s.style.transform = 'translate(' + x + 'px,' + y + 'px) translate(-50%,-50%) scale(' + sc + ')';
+          s.style.opacity = String(i === pick ? Math.min(1, fade + peel) * (0.25 + 0.75 * Math.max(depth, peel)) : (0.25 + 0.75 * depth) * fade);
+          s.style.zIndex = i === pick && peel > 0 ? '4' : depth > 0.55 ? '3' : '1';
+        });
+      };
+      var smooth = function (t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
+      return frames(1300, function (t, ms) {
+        angle = total * easeOut(t);
+        place(1 + 1.2 * (1 - easeOut(Math.min(1, ms / 380))), Math.min(1, ms / 220), t < 0.62 ? 0 : smooth((t - 0.62) / 0.38));
+      }).then(function () { return frames(160, function (t) { place(1 + 0.4 * t, 1 - t, 1); }); })
+        .then(function () { return flyToName(fx, pills[pick], g, 240); })
+        .then(function () { return wait(100); });
+    },
+    // contact cards deal past; the last one stays as today's card
+    deal: function (fx, g) {
+      var w = g.W * 1.12;
+      var dealt = function (name) {
+        var d = el('div', 'dealt');
+        d.appendChild(el('p', 'eyebrow', g.eyebrow));
+        var h = el('h2', 'name', name); h.setAttribute('dir', 'auto'); d.appendChild(h);
+        fx.appendChild(d); return d;
+      };
+      var gaps = [0, 95, 85, 75, 75, 90, 120, 160], t = 0, flights = [];
+      g.names(7).forEach(function (name, i) {
+        t += gaps[i];
+        flights.push(wait(t).then(function () {
+          var d = dealt(name);
+          return play(d, [{ transform: 'translateX(' + w + 'px) rotate(6deg)' }, { transform: 'none', offset: 0.5 }, { transform: 'translateX(' + (-w) + 'px) rotate(-6deg)' }], { duration: 330, easing: 'linear', fill: 'forwards' }).then(function () { d.remove(); });
+        }));
+      });
+      var last = wait(t + 170).then(function () {
+        var d = dealt(g.name);
+        return play(d, [{ transform: 'translateX(' + w + 'px) rotate(6deg)' }, { transform: 'translateX(-6px) rotate(-0.5deg)', offset: 0.8 }, { transform: 'none' }], { duration: 440, easing: 'cubic-bezier(.2,.75,.3,1)', fill: 'forwards' })
+          .then(function () { d.style.transition = 'box-shadow 180ms ease'; d.style.boxShadow = 'inset 0 0 0 1px transparent'; return wait(180); });
+      });
+      return Promise.all(flights.concat([last]));
+    },
+    // split-flap letters, like a departure board, settle on the name
+    board: function (fx, g) {
+      eyebrowOn(fx, g);
+      var target = Array.from(g.name);
+      var letters = 'ABCDEFGHIJKLMNOPRSTUVWYZ';
+      var size = Math.min(parseFloat(getComputedStyle($('pname')).fontSize), (g.W - 40) / (target.length * 0.78));
+      var row = el('div', 'board');
+      row.setAttribute('dir', 'auto');
+      row.style.fontSize = size + 'px';
+      row.style.top = (g.top + (g.h - size * 1.18) / 2) + 'px';
+      row.style.left = '18px';
+      var tiles = target.map(function (ch) { var t = el('span', 'tile' + (/\s/.test(ch) ? ' space' : ''), /\s/.test(ch) ? '' : letters.charAt(rand(letters.length))); row.appendChild(t); return t; });
+      fx.appendChild(row);
+      var lockAt = target.map(function (_, i) { return 420 + i * 75 + rand(40); });
+      var t0 = performance.now();
+      var timer = setInterval(function () {
+        var ms = performance.now() - t0, open = 0;
+        tiles.forEach(function (t, i) {
+          if (/\s/.test(target[i]) || t.classList.contains('set')) return;
+          if (ms >= lockAt[i]) { t.textContent = target[i]; t.classList.add('set'); return; }
+          open++;
+          t.textContent = letters.charAt(rand(letters.length));
+          t.classList.remove('flap'); void t.offsetWidth; t.classList.add('flap');
+        });
+        if (!open) clearInterval(timer);
+      }, 60);
+      return wait(Math.max.apply(null, lockAt) + 380).then(function () { clearInterval(timer); });
+    },
+    // names in two columns, today's person on the name line (top left); a highlight hops between them,
+    // slows down and stops there, and the name grows into place
+    spotlight: function (fx, g) {
+      var n = 12, list = [g.name].concat(g.names(n - 1)), pick = 0;
+      var rowTop = g.top + g.h / 2, rowGap = Math.max(30, Math.min(46, (g.H - rowTop - 26) / (n / 2 - 1)));
+      var spots = list.map(function (name, i) {
+        var s = el('span', 'spot', name); s.setAttribute('dir', 'auto');
+        s.style.left = (i % 2 ? g.W / 2 + 2 : g.textLeft - 10) + 'px';
+        s.style.top = (rowTop + Math.floor(i / 2) * rowGap) + 'px';
+        s.style.opacity = '0';
+        fx.appendChild(s);
+        setTimeout(function () { s.style.opacity = '1'; }, i * 18);
+        return s;
+      });
+      var order = [], delays = [], last = -1, d = 55, sum = 0;
+      while (sum < 1050) { var j; do { j = rand(n); } while (j === last || j === pick); order.push(j); last = j; delays.push(d); sum += d; d *= 1.16; }
+      order.push(pick); delays.push(d * 1.2);
+      var k = 0;
+      return new Promise(function (resolve) {
+        (function hop() {
+          spots.forEach(function (s) { s.classList.remove('lit'); });
+          spots[order[k]].classList.add('lit');
+          if (k === order.length - 1) { setTimeout(resolve, 380); return; }
+          setTimeout(hop, delays[k]); k++;
+        })();
+      }).then(function () { fx.classList.add('out'); spots[pick].classList.remove('lit'); return flyToName(fx, spots[pick], g, 260); })
+        .then(function () { return wait(100); });
+    },
+    // Dial 1, classic: a real rotary dial (digits on the plate, holes in the wheel) dials the last three digits
+    classic: function (fx, g) {
+      eyebrowOn(fx, g);
+      var shown = el('p', 'fly digits', ''); shown.style.left = g.left + 'px'; shown.style.top = g.top + 'px'; fx.appendChild(shown);
+      var spaceTop = g.top + g.h + 6, spaceH = g.H - spaceTop - 10;
+      var R = Math.max(62, Math.min(g.W * 0.36, spaceH / 2 - 8, 120)), cx = g.W / 2, cy = spaceTop + spaceH / 2, size = R * 2 + 34;
+      var svg = svgEl('svg', { width: size, height: size, viewBox: (-R - 17) + ' ' + (-R - 17) + ' ' + size + ' ' + size }, 'svgfx');
+      svg.style.left = (cx - size / 2) + 'px'; svg.style.top = (cy - size / 2) + 'px';
+      var STOP = 55, holeR = R * 0.15, holeAt = R * 0.72;
+      var pull = function (k) { return 80 + 28 * (k - 1); }; // digit 1 is the shortest pull, 0 the longest
+      var DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+      var at = function (i) { var a = (STOP - pull(i + 1)) * Math.PI / 180; return { x: (holeAt * Math.cos(a)).toFixed(1), y: (holeAt * Math.sin(a)).toFixed(1) }; };
+      svg.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R + 11 }, 'd-plate'));
+      DIGITS.forEach(function (dg, i) { var p = at(i); var t = svgEl('text', { x: p.x, y: p.y }, 'd-digit'); t.textContent = dg; svg.appendChild(t); });
+      var id = 'kitmask' + (++maskId);
+      var defs = svgEl('defs'), mask = svgEl('mask', { id: id, maskUnits: 'userSpaceOnUse', x: -R - 2, y: -R - 2, width: 2 * R + 4, height: 2 * R + 4 });
+      mask.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R, fill: '#fff' }));
+      DIGITS.forEach(function (_, i) { var p = at(i); mask.appendChild(svgEl('circle', { cx: p.x, cy: p.y, r: holeR.toFixed(1), fill: '#000' })); });
+      defs.appendChild(mask); svg.appendChild(defs);
+      var wheel = svgEl('g', {}, 'd-spin');
+      wheel.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R, mask: 'url(#' + id + ')' }, 'd-ring'));
+      svg.appendChild(wheel);
+      svg.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R * 0.34 }, 'd-hub'));
+      var st = STOP * Math.PI / 180;
+      svg.appendChild(svgEl('line', { x1: ((R + 1) * Math.cos(st)).toFixed(1), y1: ((R + 1) * Math.sin(st)).toFixed(1), x2: ((R + 12) * Math.cos(st)).toFixed(1), y2: ((R + 12) * Math.sin(st)).toFixed(1) }, 'd-stop'));
+      fx.appendChild(svg);
+      var digits = (g.number.replace(/\D/g, '') || '000').slice(-3).split('');
+      var chain = Promise.resolve();
+      digits.forEach(function (dg) {
+        chain = chain.then(function () {
+          var turn = pull(dg === '0' ? 10 : parseInt(dg, 10)), dur = 300 + turn * 0.85;
+          return play(wheel, [
+            { transform: 'rotate(0deg)', easing: 'cubic-bezier(.4,0,.2,1)' },
+            { transform: 'rotate(' + turn + 'deg)', offset: 0.46, easing: 'linear' },
+            { transform: 'rotate(' + turn + 'deg)', offset: 0.5, easing: 'cubic-bezier(.35,0,.25,1)' },
+            { transform: 'rotate(0deg)' }], { duration: dur });
+        }).then(function () { shown.textContent += dg; });
+      });
+      return chain.then(function () { return wait(140); })
+        .then(function () { play(svg, [{ opacity: 1 }, { opacity: 0 }], { duration: 240, fill: 'forwards' }); return play(shown, [{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: 'forwards' }); })
+        .then(function () { return nameIn(fx, g); });
+    },
+    // Dial 2, telephone: a whole rotary phone; the dial spins, it rings, and the name comes in like caller ID
+    phone: function (fx, g) {
+      eyebrowOn(fx, g);
+      var spaceTop = g.top + g.h + 10, spaceH = g.H - spaceTop - 14;
+      var w = Math.min(g.W - 60, 260, spaceH * 1.35), h = w * 0.78, x0 = (g.W - w) / 2, y0 = spaceTop + (spaceH - h) / 2;
+      var svg = svgEl('svg', { width: w, height: h, viewBox: '0 0 200 156' }, 'svgfx');
+      svg.style.left = x0 + 'px'; svg.style.top = y0 + 'px';
+      svg.appendChild(svgEl('path', { d: 'M38 150 L162 150 Q172 150 170 140 L156 62 Q153 50 140 50 L60 50 Q47 50 44 62 L30 140 Q28 150 38 150 Z' }, 'd-body'));
+      var handset = svgEl('g', {}, 'd-spin');
+      handset.appendChild(svgEl('path', { d: 'M22 34 Q22 14 44 12 L156 12 Q178 14 178 34 L178 40 Q178 46 170 46 L148 46 Q140 46 140 38 L140 30 L60 30 L60 38 Q60 46 52 46 L30 46 Q22 46 22 40 Z' }, 'd-body'));
+      svg.appendChild(handset);
+      svg.appendChild(svgEl('circle', { cx: 100, cy: 104, r: 36 }, 'd-face'));
+      var dial = svgEl('g', {}, 'd-spin');
+      dial.appendChild(svgEl('circle', { cx: 100, cy: 104, r: 35, fill: 'none', stroke: 'none' }));
+      for (var i = 0; i < 10; i++) { var a = (-60 - 28 * i) * Math.PI / 180; dial.appendChild(svgEl('circle', { cx: (100 + 25 * Math.cos(a)).toFixed(1), cy: (104 + 25 * Math.sin(a)).toFixed(1), r: 5.2 }, 'd-hole')); }
+      svg.appendChild(dial);
+      svg.appendChild(svgEl('circle', { cx: 100, cy: 104, r: 11 }, 'd-hub'));
+      var rings = ['M184 22 Q194 30 184 40', 'M16 22 Q6 30 16 40', 'M190 14 Q206 30 190 46', 'M10 14 Q-6 30 10 46'].map(function (d) { var r = svgEl('path', { d: d }, 'd-ringline'); r.style.opacity = '0'; svg.appendChild(r); return r; });
+      fx.appendChild(svg);
+      return play(dial, [{ transform: 'rotate(0deg)', easing: 'cubic-bezier(.4,0,.2,1)' }, { transform: 'rotate(300deg)', offset: 0.5, easing: 'cubic-bezier(.35,0,.25,1)' }, { transform: 'rotate(0deg)' }], { duration: 760 })
+        .then(function () {
+          rings.forEach(function (r, k) { play(r, [{ opacity: 0 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 560, delay: k > 1 ? 80 : 0 }); });
+          return play(handset, [{ transform: 'rotate(0deg) translateY(0px)' }, { transform: 'rotate(-5deg) translateY(-3px)', offset: 0.15 }, { transform: 'rotate(5deg) translateY(-3px)', offset: 0.35 }, { transform: 'rotate(-4deg) translateY(-2px)', offset: 0.55 }, { transform: 'rotate(3deg) translateY(-1px)', offset: 0.75 }, { transform: 'rotate(0deg) translateY(0px)' }], { duration: 560 });
+        })
+        .then(function () { play(svg, [{ opacity: 1 }, { opacity: 0 }], { duration: 260, fill: 'forwards' }); return nameIn(fx, g); })
+        .then(function () { return wait(120); });
+    },
+    // Dial 3, tuner: first names around the rim with room between them, like stations on an old radio;
+    // it stops with today's person at the top, and the name rises onto the name line
+    tuner: function (fx, g) {
+      eyebrowOn(fx, g);
+      var n = 8, list = g.names(n - 1), pick = rand(n); list.splice(pick, 0, g.name);
+      var spaceTop = g.top + g.h + 18, spaceH = g.H - spaceTop - 10;
+      var R = Math.max(58, Math.min(g.W * 0.27, (spaceH - 44) / 2, 92)), labelR = R + 24;
+      var cx = Math.max(labelR + 44, g.textLeft + 50), cy = spaceTop + labelR + 4, size = (labelR + 64) * 2;
+      var svg = svgEl('svg', { width: size, height: size, viewBox: (-size / 2) + ' ' + (-size / 2) + ' ' + size + ' ' + size }, 'svgfx');
+      svg.style.left = (cx - size / 2) + 'px'; svg.style.top = (cy - size / 2) + 'px';
+      svg.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R + 8 }, 'd-plate'));
+      var wheel = svgEl('g', {}, 'd-spin');
+      wheel.appendChild(svgEl('circle', { cx: 0, cy: 0, r: labelR + 34, fill: 'none', stroke: 'none' }));
+      wheel.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R }, 'd-ring'));
+      for (var i = 0; i < 10; i++) { var a = (-60 - 30 * i) * Math.PI / 180; wheel.appendChild(svgEl('circle', { cx: (R * 0.68 * Math.cos(a)).toFixed(1), cy: (R * 0.68 * Math.sin(a)).toFixed(1), r: (R * 0.14).toFixed(1) }, 'd-hole')); }
+      var first = function (name) { var w = String(name).trim().split(/\s+/)[0] || name; return w.length > 10 ? w.slice(0, 9) + '…' : w; };
+      var labels = list.map(function (name, k) {
+        var t = svgEl('text', { x: 0, y: (-labelR).toFixed(1), transform: 'rotate(' + (k * 360 / n) + ')' }, 'd-label'); t.textContent = first(name);
+        wheel.appendChild(t); return t;
+      });
+      svg.appendChild(wheel);
+      svg.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R * 0.34 }, 'd-hub'));
+      svg.appendChild(svgEl('path', { d: 'M -6 ' + (-R - 9) + ' L 6 ' + (-R - 9) + ' L 0 ' + (-R + 1) + ' Z' }, 'd-pointer'));
+      fx.appendChild(svg);
+      var turn = 720 + (360 - pick * 360 / n) % 360;
+      return play(wheel, [{ transform: 'rotate(0deg)', easing: 'cubic-bezier(.15,.7,.2,1)' }, { transform: 'rotate(' + (turn + 6) + 'deg)', offset: 0.9, easing: 'ease-in-out' }, { transform: 'rotate(' + turn + 'deg)' }], { duration: 1500, fill: 'forwards' })
+        .then(function () { labels[pick].setAttribute('class', 'd-label on'); return wait(160); })
+        .then(function () { play(svg, [{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' }); return flyToName(fx, labels[pick], g, 320); })
+        .then(function () { return wait(100); });
+    },
+    // Prize wheel, like an old game show: colored slices with first names, pegs on the rim and a clicker on top
+    // that ticks past each peg; the wheel slows, the clicker stops on today's person, and the full name pops up
+    // and flies onto the name line
+    wheel: function (fx, g) {
+      eyebrowOn(fx, g);
+      var n = 10, seg = 360 / n, list = g.names(n - 1), pick = rand(n); list.splice(pick, 0, g.name);
+      var spaceTop = g.top + g.h + 12, spaceH = g.H - spaceTop - 8;
+      var R = Math.max(56, Math.min(g.W / 2 - 24, (spaceH - 40) / 2, 140)), cx = g.W / 2, py = -R - 22; // py: the clicker's pivot
+      var svg = svgEl('svg', { width: 2 * R + 20, height: 2 * R + 40, viewBox: (-R - 10) + ' ' + (-R - 30) + ' ' + (2 * R + 20) + ' ' + (2 * R + 40) }, 'svgfx');
+      svg.style.left = (cx - R - 10) + 'px'; svg.style.top = spaceTop + 'px';
+      var xy = function (deg, r) { var a = deg * Math.PI / 180; return [(r * Math.sin(a)).toFixed(1), (-r * Math.cos(a)).toFixed(1)]; };
+      var fs = Math.max(10, Math.min(15, R * 0.11)), maxCh = Math.max(5, Math.floor(0.6 * R / (0.56 * fs)));
+      var short = function (name) { var w = String(name).trim().split(/\s+/)[0] || name; return w.length > maxCh ? w.slice(0, maxCh - 1) + '…' : w; };
+      svg.appendChild(svgEl('circle', { cx: 0, cy: 0, r: R + 7 }, 'w-rim'));
+      var wheel = svgEl('g'), segs = [], labels = [];
+      list.forEach(function (_, k) {
+        var a = xy(k * seg, R), b = xy((k + 1) * seg, R);
+        segs.push(wheel.appendChild(svgEl('path', { d: 'M0 0 L' + a[0] + ' ' + a[1] + ' A' + R + ' ' + R + ' 0 0 1 ' + b[0] + ' ' + b[1] + ' Z' }, 'w-seg c' + (k % 4))));
+      });
+      list.forEach(function (name, k) {
+        var t = svgEl('text', { x: (R * 0.9).toFixed(1), y: 0, transform: 'rotate(' + (k * seg + seg / 2 - 90) + ')' }, 'w-label');
+        t.style.fontSize = fs + 'px'; t.textContent = short(name);
+        labels.push(wheel.appendChild(t));
+        var p = xy(k * seg, R + 3.5);
+        wheel.appendChild(svgEl('circle', { cx: p[0], cy: p[1], r: 2.3 }, 'w-peg'));
+      });
+      svg.appendChild(wheel);
+      svg.appendChild(svgEl('circle', { cx: 0, cy: 0, r: (R * 0.17).toFixed(1) }, 'd-hub'));
+      var clicker = svgEl('g');
+      clicker.appendChild(svgEl('path', { d: 'M -7 ' + py + ' L 7 ' + py + ' L 0 ' + (-R + 2) + ' Z' }, 'd-pointer'));
+      clicker.appendChild(svgEl('circle', { cx: 0, cy: py, r: 6.5 }, 'd-pointer'));
+      svg.appendChild(clicker);
+      fx.appendChild(svg);
+      // turn so today's slice ends under the clicker, a little off its middle, after two full turns
+      var end = 720 + (360 - (pick * seg + seg / 2)) % 360 + (Math.random() - 0.5) * seg * 0.4;
+      var turn = function (deg) {
+        wheel.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ')');
+        // a peg pushes the clicker aside as it comes up, then the clicker snaps back past the middle
+        var phase = (deg % seg) / seg, d = 0;
+        if (phase > 0.72) d = -26 * (phase - 0.72) / 0.28;
+        else if (phase < 0.22) d = 9 * Math.sin(Math.PI * phase / 0.22);
+        clicker.setAttribute('transform', 'rotate(' + d.toFixed(1) + ' 0 ' + py + ')');
+      };
+      return frames(1700, function (t) { turn(end * easeOut(t)); })
+        .then(function () { segs[pick].setAttribute('class', 'w-seg on c' + (pick % 4)); labels[pick].setAttribute('class', 'w-label on'); svg.setAttribute('class', 'svgfx w-landed'); return wait(160); })
+        .then(function () {
+          var tag = el('span', 'pill chosen', g.name), at = 'translate(' + cx + 'px,' + (spaceTop + 8) + 'px) translate(-50%,-50%)';
+          tag.setAttribute('dir', 'auto'); tag.style.transform = at; fx.appendChild(tag);
+          play(svg, [{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: 'forwards' });
+          return play(tag, [{ opacity: 0, transform: at + ' scale(0.6)' }, { opacity: 1, transform: at }], { duration: 160, easing: 'cubic-bezier(.2,.7,.2,1)' })
+            .then(function () { return flyToName(fx, tag, g, 280); });
+        })
+        .then(function () { return wait(100); });
+    },
+  };
+  var NS = 'http://www.w3.org/2000/svg', maskId = 0;
+  function svgEl(tag, attrs, cls) { var e = document.createElementNS(NS, tag); Object.keys(attrs || {}).forEach(function (a) { e.setAttribute(a, attrs[a]); }); if (cls) e.setAttribute('class', cls); return e; }
+  // the name rises onto the name line, like caller ID
+  function nameIn(fx, g) {
+    var t = el('p', 'fly', g.name); t.setAttribute('dir', 'auto'); t.style.left = g.left + 'px'; t.style.top = g.top + 'px'; fx.appendChild(t);
+    return play(t, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'forwards' });
+  }
+
+  // Every style. Tapping Spin plays your everyday spin (Settings); holding plays one of the others.
+  var SPIN_STYLES = [['reel', 'Reel'], ['orbit', 'Orbit'], ['deal', 'Deal'], ['board', 'Board'], ['spotlight', 'Spotlight'], ['classic', 'Classic dial'], ['phone', 'Telephone'], ['tuner', 'Tuner'], ['wheel', 'Prize wheel']];
+  function everydayStyle() { var e = state.settings.everyday; return SPIN_STYLES.some(function (x) { return x[0] === e; }) ? e : 'reel'; }
+  function runStyle(style, fx, g) { return style === 'reel' ? reelSpin(fx, g, false) : FUN[style](fx, g); }
+  // Fun spin shows each of the other styles once, in a new order, before any repeats, and never the same twice in a row.
+  var funBag = [], lastFun = '', funBagFor = '';
+  function nextFunStyle() {
+    var mine = everydayStyle();
+    if (funBagFor !== mine) { funBag = []; funBagFor = mine; }
+    if (!funBag.length) {
+      funBag = SPIN_STYLES.map(function (x) { return x[0]; }).filter(function (k) { return k !== mine; });
+      for (var i = funBag.length - 1; i > 0; i--) { var j = rand(i + 1), t = funBag[i]; funBag[i] = funBag[j]; funBag[j] = t; }
+      if (funBag[funBag.length - 1] === lastFun) funBag.unshift(funBag.pop());
+    }
+    lastFun = funBag.pop();
+    return lastFun;
+  }
+
+  // After a spin the card is what matters (name, number, Call, Spin again), so the screen scrolls it to the top.
+  // The page gets just enough room below the card for that; the big Spin stays above if you scroll back up.
+  function bringCardUp(card) {
+    var top = card.getBoundingClientRect().top;
+    if (top >= 0 && top < 70) return;
+    var room = window.innerHeight - card.offsetHeight - 100;
+    $('view-spin').style.paddingBottom = Math.max(16, room) + 'px';
+    try { card.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' }); } catch (e) { card.scrollIntoView(true); }
+  }
+
+  function animate(kind) {
+    var card = $('card');
+    if (reduced || typeof card.animate !== 'function') { render(); bringCardUp(card); return; }
+    if (kind !== 'fun' && spinsToday() <= 1) kind = 'full'; // this spin is already recorded
+    ui.spinning = true;
+    render();
+    bringCardUp(card);
+    var fx = el('div', 'fx');
+    fx.setAttribute('aria-hidden', 'true');
+    card.appendChild(fx);
+    var g = spinGeom(fx);
+    var style = kind === 'fun' ? nextFunStyle() : kind === 'full' ? everydayStyle() : 'reel';
+    fx.setAttribute('data-spin', kind === 'quick' ? 'quick' : kind === 'full' && style === 'reel' ? 'full' : style);
+    var run;
+    try { run = kind === 'quick' ? reelSpin(fx, g, true) : runStyle(style, fx, g); } catch (e) { run = Promise.resolve(); }
+    var done = false;
+    var finish = function () {
+      if (done) return;
+      done = true;
+      ui.spinning = false;
+      render();
+      play(fx, [{ opacity: 1 }, { opacity: 0 }], { duration: 140, fill: 'forwards' }).then(function () { fx.remove(); });
+    };
+    run.then(finish, finish);
+    setTimeout(finish, 4000); // never leave the card covered
+  }
+
+  // Press and hold any spin button for half a second for a fun spin; the screen doesn't change.
+  // A right-click (or the keyboard's menu key) does the same, so it isn't touch-only.
+  var heldFun = false;
+  function holdForFun(btn) {
+    var timer = 0, pressing = false;
+    var stop = function () { clearTimeout(timer); pressing = false; btn.classList.remove('holding'); };
+    btn.addEventListener('pointerdown', function (ev) {
+      if (ev.button > 0 || ui.spinning) return;
+      heldFun = false; pressing = true; btn.classList.add('holding');
+      timer = setTimeout(function () { stop(); heldFun = true; setTimeout(function () { heldFun = false; }, 1500); onDial('fun'); }, 480);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (type) { btn.addEventListener(type, stop); });
+    btn.addEventListener('contextmenu', function (ev) { ev.preventDefault(); if (!pressing && !heldFun) onDial('fun'); });
+  }
+
+  function onDial(kind) {
+    if (ui.spinning) return;
+    if (ui.mode === 'checkin' || ui.mode === 'would') return;
+    if (ui.mode === 'picked' && ui.pick && !ui.tagged) E.act(state, ui.pick.id, 'reroll', { spinId: ui.pick.spinId });
+    spinNow(kind);
+  }
+
+  function startCall() {
+    if (!ui.pick) return;
+    E.act(state, ui.pick.id, 'call', { spinId: ui.pick.spinId });
+    ui.mode = 'checkin';
+    save();
+    setTimeout(render, 0); // let the tel: link fire first
+  }
+
+  function onAction(action) {
+    var p = ui.pick;
+    if (!p && action !== 'spin') return;
+    if (action === 'reroll') { if (!ui.tagged) E.act(state, p.id, 'reroll', { spinId: p.spinId }); spinNow('quick'); return; }
+    if (action === 'spin') { spinNow('quick'); return; }
+    if (action === 'talked') { E.act(state, p.id, 'talked'); ui.outcome = 'talked'; ui.mode = 'would'; }
+    else if (action === 'noAnswer') { E.act(state, p.id, 'noAnswer'); ui.outcome = 'noAnswer'; ui.mode = 'would'; }
+    else if (action === 'notCalled') { E.act(state, p.id, 'notCalled', { spinId: p.spinId }); ui.mode = 'picked'; ui.fromEarlier = false; }
+    else if (action === 'wouldHave' || action === 'wouldNot') {
+      E.act(state, p.id, action, { outcome: ui.outcome || 'talked' });
+      ui.mode = 'done';
+      ui.would = action;
+    }
+    save();
+    render();
+  }
+
+  // A tag only labels. The person stays on screen with Call and Spin again; spinning is always the user's tap.
+  var TAG_MSG = {
+    spokeWeek: 'Noted: you spoke this week.',
+    spokeMonth: 'Noted: you spoke this month.',
+    business: 'Marked as a business. They won’t come up again.',
+    hide: 'They won’t come up again.',
+  };
+  function onTag(tag) {
+    var p = ui.pick;
+    if (!p || ui.spinning) return;
+    if (TAG_MSG[tag]) {
+      if (ui.tagged === tag) return; // already noted for this pick
+      var snapshot = E.serialize(state);
+      var before = ui.tagged;
+      E.act(state, p.id, tag);
+      ui.tagged = tag; // "Spin again" after this isn't a "not now"
+      save();
+      render();
+      toast(TAG_MSG[tag], function () {
+        state = E.deserialize(snapshot);
+        ui.tagged = before;
+        save(); render();
+      });
+      return;
+    }
+    E.act(state, p.id, tag); // friend / family / work toggle
+    save();
+    render();
+  }
+
+  // ------------------------------------------------------------ rendering
+  function backupDue() {
+    if (demo || !state || !storageOK) return '';
+    var start = E.testStart(state);
+    if (!start) return '';
+    var last = state.settings.lastBackupAt || 0;
+    var now = Date.now();
+    if (!last && now - start > 3 * DAY) return 'You haven’t saved a backup yet. One file keeps your progress safe.';
+    if (last && now - last > 7 * DAY) return 'It’s been a week since your last backup.';
+    return '';
+  }
+
+  function renderBanner() {
+    var b = $('banner');
+    var due = backupDue();
+    if (demo) {
+      b.className = 'banner';
+      b.innerHTML = '<p>These are example contacts so you can try it. Bring in yours to start for real.</p><button class="btn btn-small btn-ink" type="button" data-go="import">Bring in contacts</button>';
+      b.hidden = false;
+    } else if (!storageOK) {
+      b.className = 'banner alert';
+      b.innerHTML = '<p>This browser isn’t keeping your progress. Save a backup in Settings before you close the app.</p>';
+      b.hidden = false;
+    } else if (installPrompt && !standalone) {
+      b.className = 'banner';
+      b.innerHTML = '<p>Put Keep in Touch on your home screen so it opens like an app.</p><button class="btn btn-small btn-ink" type="button" data-install>Install</button>';
+      b.hidden = false;
+    } else if (due && !backupSnoozed) {
+      b.className = 'banner';
+      b.innerHTML = '<p>' + esc(due) + '</p><div class="btn-row"><button class="btn btn-small btn-ink" type="button" data-backup>Save a backup</button><button class="btn btn-small btn-quiet" type="button" data-snooze>Later</button></div>';
+      b.hidden = false;
+    } else b.hidden = true;
+  }
+
+  function renderSaved() {
+    var el = $('saved-line');
+    if (demo) { el.hidden = true; return; }
+    el.hidden = false;
+    if (!storageOK) { el.className = 'saved bad'; el.textContent = 'Not saved: this browser isn’t keeping data'; return; }
+    el.className = 'saved';
+    var t = lastSaved || state.updatedAt;
+    el.textContent = t ? 'Saved on this device · ' + savedWhen(t) : 'Saved on this device';
+  }
+
+  function renderSpin() {
+    var card = $('card');
+    var p = currentPerson();
+    var mode = p ? ui.mode : (ui.mode === 'empty' ? 'empty' : 'idle');
+    $('empty').hidden = mode !== 'empty';
+    $('dial-hint').hidden = mode !== 'idle';
+    renderSaved();
+    var locked = mode === 'checkin' || mode === 'would';
+    $('dial').setAttribute('aria-disabled', locked ? 'true' : 'false');
+    $('dial').setAttribute('aria-label', locked ? 'Answer below first' : 'Spin to pick someone to call. Press and hold for a fun spin.');
+    if (!p || mode === 'idle' || mode === 'empty') { card.hidden = true; $('view-spin').style.paddingBottom = ''; return; }
+    card.hidden = false;
+    // why they came up is fixed when they're picked, so tagging doesn't shift the card under your thumb
+    var whyKey = ui.pick.id + ':' + ui.pick.spinId;
+    if (!ui.why || ui.why.key !== whyKey) ui.why = { key: whyKey, lines: E.explain(state, ui.pick.id, Date.now(), ui.pick.mode).lines };
+    var explain = ui.why;
+    var num = bestNumber(p);
+    var L = state.learn[ui.pick.id] || {};
+    var first = shortName(p);
+
+    var eyebrow = {
+      picked: ui.pick.mode === 'explore' ? 'Someone new to try' : 'Your call today',
+      checkin: ui.fromEarlier ? 'From earlier' : 'After the call',
+      would: ui.outcome === 'noAnswer' ? 'No answer' : 'Nice',
+      done: 'Done for today',
+    }[mode] || 'Your call today';
+    $('eyebrow').textContent = eyebrow;
+    // While the reel runs, the card is laid out as it will land, hidden underneath, so nothing jumps.
+    card.classList.toggle('spinning', ui.spinning);
+    if (ui.spinning) card.setAttribute('aria-busy', 'true'); else card.removeAttribute('aria-busy');
+    $('pname').textContent = p.name;
+    $('nlabel').textContent = num ? (demo ? 'Example number' : numberLabel(num)) : '';
+    $('pnumber').textContent = num ? num.raw : '';
+    $('why').textContent = explain.lines.join(' · ');
+    $('why').hidden = !explain.lines.length || mode !== 'picked';
+    // Research: people underestimate how much a call is appreciated, most of all from someone they rarely hear from.
+    $('nudge').hidden = mode !== 'picked' || ui.pick.mode !== 'explore';
+
+    var call = $('call');
+    call.href = num && !demo ? telHref(num.raw) : '#';
+    call.textContent = p.nameFromNumber ? 'Call' : 'Call ' + first;
+
+    var show = function (id, on) { $(id).hidden = !on; };
+    show('act-picked', mode === 'picked');
+    show('act-checkin', mode === 'checkin');
+    show('act-would', mode === 'would');
+    show('act-done', mode === 'done');
+    show('tags', mode === 'picked');
+    $('number-row').hidden = mode === 'would' || mode === 'done';
+    $('copy').hidden = mode !== 'picked' && mode !== 'checkin';
+    $('checkin-q').textContent = ui.fromEarlier ? 'Did you talk to ' + first + '?' : 'When you’re done:';
+    $('would-q').textContent = 'Would you have called ' + first + ' today without this?';
+    var msg;
+    if (ui.outcome === 'noAnswer') msg = (ui.would === 'wouldNot' ? 'You still reached out, and that counts. ' : '') + first + ' will come up again in a day or two.';
+    else msg = ui.would === 'wouldNot' ? 'That’s a call that wouldn’t have happened. That’s your call for today.' : 'Saved. That’s your call for today.';
+    $('done-msg').textContent = msg;
+    var chips = card.querySelectorAll('[data-tag]');
+    for (var i = 0; i < chips.length; i++) {
+      var t = chips[i].getAttribute('data-tag');
+      if (t === 'friend' || t === 'family' || t === 'work') chips[i].setAttribute('aria-pressed', L.rel === t ? 'true' : 'false');
+      else chips[i].setAttribute('aria-pressed', ui.tagged === t ? 'true' : 'false');
+    }
+  }
+
+  var VERB = {
+    show: 'Came up', reroll: 'Spun past', call: 'Called', talked: 'Talked with', noAnswer: 'No answer from', notCalled: 'Didn’t call',
+    wouldHave: 'Would have called anyway:', wouldNot: 'Wouldn’t have called otherwise:', spokeWeek: 'Spoke this week with',
+    spokeMonth: 'Spoke this month with', business: 'Marked as a business:', unbusiness: 'Not a business:', hide: 'Hidden:', unhide: 'Back in spins:',
+  };
+  var REL = { friend: 'Friend', family: 'Family', work: 'Work' };
+  var VERDICT = { yes: 'Yes', unsure: 'Not sure', no: 'No' };
+  function renderHistory() {
+    var ev = state.events.slice(-150).reverse();
+    if (!ev.length) { $('history-body').innerHTML = '<p class="sub">Nothing yet. Spin on the first tab and your calls show up here.</p>'; return; }
+    var html = '';
+    var lastDay = '';
+    var open = false;
+    for (var i = 0; i < ev.length; i++) {
+      var e = ev[i];
+      var day = dayLabel(e.t);
+      if (day !== lastDay) {
+        if (open) html += '</ul>';
+        html += '<h3 class="hist-day">' + esc(day) + '</h3><ul class="hist">';
+        lastDay = day; open = true;
+      }
+      var text;
+      if (e.k === 'verdict') text = 'Would you spin again tomorrow? <bdi>' + esc(VERDICT[e.v] || e.v) + '</bdi>';
+      else if (e.k === 'resetLearning') text = 'Reset what the app learned';
+      else {
+        var p = state.people[e.id];
+        var name = p ? p.name : 'Someone no longer in your contacts';
+        if (REL[e.k]) text = (e.v ? 'Tagged ' + REL[e.k] + ':' : 'Removed the ' + REL[e.k] + ' tag:') + ' <bdi>' + esc(name) + '</bdi>';
+        else text = (VERB[e.k] || e.k) + ' <bdi>' + esc(name) + '</bdi>' + (e.k === 'show' && e.m ? ' <span class="dim">(someone new)</span>' : '');
+      }
+      html += '<li class="' + (e.k === 'show' ? 'dim' : '') + '"><time>' + fmtTime(e.t) + '</time><span>' + text + '</span></li>';
+    }
+    if (open) html += '</ul>';
+    if (demo) html = '<p class="fine">Example history. It starts fresh when you bring in your contacts.</p>' + html;
+    $('history-body').innerHTML = html;
+  }
+
+  function testDay(now) {
+    var start = E.testStart(state);
+    if (!start) return 0;
+    // Calendar days, rounded so a clock change (23- or 25-hour day) doesn't shift the count.
+    return Math.round((new Date(now).setHours(0, 0, 0, 0) - new Date(start).setHours(0, 0, 0, 0)) / DAY) + 1;
+  }
+  function summaryText(now) { return E.shareableText(state, now, APP_VERSION); }
+  function weekCell(w, f) { return w ? f(w) : '<span class="fine">not yet</span>'; }
+  function renderTest() {
+    var now = Date.now();
+    var s = E.stats(state, { now: now, days: 14 });
+    var all = E.stats(state, { now: now, days: 0 });
+    var start = E.testStart(state);
+    var tr = E.trend(state, now);
+    var day = testDay(now);
+    $('test-sub').textContent = start
+      ? (day <= 14 ? 'Day ' + day + ' of 14. ' : 'The two weeks are up. ') + 'Started ' + fmtShort(start) + ', checkpoint on ' + fmtShort(start + 14 * DAY) + '.'
+      : 'Your first spin starts the two weeks.';
+    var target = 5;
+    var pct = Math.min(100, Math.round((s.wouldNotHave / target) * 100));
+    var html = '';
+    html += '<div class="panel kpi"><div class="kpi-top"><span class="kpi-num">' + s.wouldNotHave + '</span><span class="kpi-of">of 5 suggested</span></div>' +
+      '<div class="kpi-label"><b>Calls you wouldn’t have made otherwise</b></div><div class="meter" aria-hidden="true"><i style="width:' + pct + '%"></i></div>' +
+      '<p class="fine">Counted when you answer “No” to “Would you have called them today without this?” ' + plural(s.wouldNotTalked, 'became a conversation', 'became conversations') + '.</p></div>';
+    html += '<div class="tiles">' +
+      tile(s.activeDays + ' <span>of 14</span>', 'Days you spun') +
+      tile(s.callDays + ' <span>of ' + s.activeDays + '</span>', 'Days that led to a call') +
+      tile(s.firstThreeDays + ' <span>of ' + s.activeDays + '</span>', 'Days a call came from the first three spins') +
+      tile(s.calls, 'Calls') +
+      tile(s.talked, 'Conversations') +
+      tile(s.spinsPerCall === null ? '–' : s.spinsPerCall, 'Spins per call') +
+      '</div>';
+    html += '<div class="panel"><h3>Is it getting better?</h3><div class="table-wrap"><table class="trend"><thead><tr><th></th><th>Week 1</th><th>Week 2</th></tr></thead><tbody>' +
+      '<tr><th>Days that led to a call</th><td>' + weekCell(tr && tr.week1, function (w) { return w.callDays + ' of ' + w.activeDays; }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return w.callDays + ' of ' + w.activeDays; }) + '</td></tr>' +
+      '<tr><th>A call from the first three spins</th><td>' + weekCell(tr && tr.week1, function (w) { return plural(w.firstThreeDays, 'day'); }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return plural(w.firstThreeDays, 'day'); }) + '</td></tr>' +
+      '<tr><th>Spins per call</th><td>' + weekCell(tr && tr.week1, function (w) { return w.spinsPerCall === null ? '–' : w.spinsPerCall; }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return w.spinsPerCall === null ? '–' : w.spinsPerCall; }) + '</td></tr>' +
+      '<tr><th>Calls you wouldn’t have made</th><td>' + weekCell(tr && tr.week1, function (w) { return w.wouldNotHave; }) + '</td><td>' + weekCell(tr && tr.week2, function (w) { return w.wouldNotHave; }) + '</td></tr>' +
+      '</tbody></table></div><p class="fine">If it’s learning, week 2 should need fewer spins per call.</p></div>';
+    var v = E.latestVerdict(state);
+    html += '<div class="panel"><h3>Would you spin again tomorrow?</h3><div class="seg" role="group" aria-label="Would you spin again tomorrow?">' +
+      ['yes', 'unsure', 'no'].map(function (k) { return '<button type="button" data-verdict="' + k + '" aria-pressed="' + (v === k ? 'true' : 'false') + '">' + VERDICT[k] + '</button>'; }).join('') +
+      '</div><p class="fine">The engine’s pass mark from the blueprint: picks good enough that you’d spin again tomorrow. Answer any time; the latest answer counts.</p></div>';
+    html += '<div class="panel"><h3>The bar for this checkpoint</h3><p class="fine">Suggested: on most days a call comes from the first three spins, at least five calls you wouldn’t have made otherwise, and you’d still spin on day 14. Set your own if you prefer.</p></div>';
+    html += '<div class="panel"><h3>Since you started</h3><ul class="facts">' +
+      fact('Spins', all.spins) + fact('Calls', all.calls) + fact('Conversations', all.talked) + fact('Calls you wouldn’t have made', all.wouldNotHave) +
+      fact('Tried someone new', all.explorationSpins) + fact('Calls to someone new', all.explorationCalls) + fact('Different people called', all.peopleCalled) + '</ul></div>';
+    html += '<div class="panel"><h3>Share my stats</h3><p class="fine">For testers. Counts only: no names, numbers or label names.</p>' +
+      '<div class="btn-row"><button class="btn btn-ink" type="button" id="share-copy">Copy summary</button><button class="btn" type="button" id="share-file">Save as a file</button></div>' +
+      '<p class="fine share-text" id="share-text"></p></div>';
+    if (demo) html = '<p class="fine">These numbers come from the example contacts.</p>' + html;
+    $('test-body').innerHTML = html;
+    $('share-text').textContent = summaryText(now);
+    $('share-copy').addEventListener('click', function (ev) {
+      var btn = ev.currentTarget;
+      copyText(summaryText(now), function (ok) { btn.textContent = ok ? 'Copied' : 'Selected. Copy it now'; }, $('share-text'));
+    });
+    $('share-file').addEventListener('click', function () {
+      offerFile('keep-in-touch-stats-' + isoDay(now) + '.json', JSON.stringify(E.shareableStats(state, now), null, 2), 'Your stats')
+        .then(function (r) { if (r === 'saved') toast('Stats file saved.'); });
+    });
+  }
+
+  var armed = { erase: 0, reset: 0 };
+  function arm(which) {
+    clearTimeout(armed[which]);
+    armed[which] = setTimeout(function () { armed[which] = 0; renderSettings(); }, 4000);
+    renderSettings();
+  }
+  function renderSettings() {
+    var info = state.importInfo || {};
+    var hidden = E.hiddenPeople(state);
+    var rate = state.settings && typeof state.settings.exploration === 'number' ? state.settings.exploration : E.PARAMS.exploration;
+    var rem = state.settings.reminder || { time: '20:00', days: [0, 1, 2, 3, 4] };
+    var now = Date.now();
+    var s14 = E.stats(state, { now: now, days: 14 });
+    var day = testDay(now);
+    var html = '';
+
+    html += '<div class="panel"><h3>Two-week test</h3><p class="fine">' +
+      (day ? (day <= 14 ? 'Day ' + day + ' of 14' : 'The two weeks are up') + ' · ' + plural(s14.wouldNotHave, 'call', 'calls') + ' you wouldn’t have made otherwise.' : 'Starts with your first spin.') +
+      '</p><button class="btn" type="button" data-go="test">Open the checkpoint</button></div>';
+
+    if (hosted || standalone) {
+      html += '<div class="panel"><h3>On your home screen</h3>';
+      if (standalone) html += '<p class="fine">Installed. It opens like an app and works without a signal.</p>';
+      else if (installPrompt) html += '<p class="fine">Install it so it opens like an app, full screen, and works without a signal.</p><button class="btn btn-ink" type="button" data-install>Install</button>';
+      else if (iosDevice) html += '<p class="fine">In Safari, tap <b>Share</b> (the square with an arrow), then <b>Add to Home Screen</b>.</p>';
+      else html += '<p class="fine">In Chrome, open the ⋮ menu and choose <b>Add to home screen</b> or <b>Install app</b>.</p>';
+      html += '</div>';
+    }
+
+    var own = ownMoment || (!!rem.moment && !isPresetMoment(rem.moment));
+    var momentChip = function (value, label) {
+      return '<button class="chip" type="button" data-moment="' + esc(value) + '" aria-pressed="' + (!own && (rem.moment || '') === value ? 'true' : 'false') + '">' + esc(label) + '</button>';
+    };
+    var google = '<a class="btn' + (appleDevice ? '' : ' btn-ink') + '" id="rem-add" target="_blank" rel="noopener" href="' + esc(reminderUrl(rem) || '#') + '">Add to Google Calendar</a>';
+    var apple = '<a class="btn btn-ink" id="rem-ics" ' + (appleCalBlocked ? 'href="#" data-applecal' : 'href="' + esc(reminderIcsHref(rem)) + '" download="keep-in-touch-reminder.ics"' + (framed ? ' data-applecal' : '')) + '>Add to Apple Calendar</a>';
+    html += '<div class="panel"><h3>Daily reminder</h3><p class="fine">A repeating reminder in your calendar, so it works when the app is closed. Tie it to something you already do each day; that makes it more likely you’ll follow through.</p>' +
+      '<div class="chips" role="group" aria-label="When">' + MOMENTS.map(function (m) { return momentChip(m[0], m[0]); }).join('') + momentChip('', 'Just a time') +
+      '<button class="chip" type="button" data-moment-own aria-pressed="' + (own ? 'true' : 'false') + '">Your own</button></div>' +
+      (own ? '<input class="rem-own" id="rem-own" type="text" maxlength="40" autocomplete="off" placeholder="For example: After the kids are asleep" aria-label="Your own moment" value="' + esc(isPresetMoment(rem.moment) ? '' : rem.moment || '') + '">' : '') +
+      '<div class="rem-row"><label for="rem-time">Time</label><input type="time" id="rem-time" value="' + esc(rem.time) + '"><span class="fine" id="rem-time-label">' + fmtClock(rem.time) + '</span></div>' +
+      '<div class="days" role="group" aria-label="Days">' + DAY_NAMES.map(function (n, i) {
+        return '<button type="button" data-day="' + i + '" aria-pressed="' + (rem.days.indexOf(i) >= 0 ? 'true' : 'false') + '">' + n + '</button>';
+      }).join('') + '</div>' +
+      '<p class="rem-preview">It will say <b id="rem-preview">“' + esc(reminderTitle(rem)) + '”</b></p>' +
+      (appleDevice ? apple + google : google) +
+      '<p class="fine">Your calendar asks you to save it and alerts you at that time. To change it, set it here again, add it again, and delete the old one in your calendar.</p></div>';
+
+    html += '<div class="panel"><h3>Your data</h3><ul class="status-list">';
+    if (demo) html += status(null, 'You’re looking at example contacts. Nothing is saved until you bring in yours.');
+    else {
+      html += status(storageOK, storageOK ? 'Saved on this device after every tap' + (lastSaved || state.updatedAt ? ' (last: ' + savedWhen(lastSaved || state.updatedAt) + ')' : '') : 'This browser isn’t keeping your data');
+      html += status(persisted === true ? true : persisted === false ? false : null,
+        persisted === true ? 'The browser has agreed to keep it' : persisted === false ? 'The browser may clear it if the phone runs low on space, so keep backups' : 'Asking the browser to keep it…');
+      var lb = state.settings.lastBackupAt || 0;
+      html += status(!!lb && now - lb <= 7 * DAY ? true : lb ? false : null, lb ? 'Last backup: ' + fmtDate(lb) : 'No backup yet');
+    }
+    html += '</ul><div class="btn-row"><button class="btn btn-ink" type="button" data-backup' + (demo ? ' disabled' : '') + '>Save a backup</button>' +
+      '<label class="btn file-btn">Restore a backup<input type="file" id="file-backup" accept=".json,application/json"></label></div>' +
+      '<p class="fine">Everything lives only in this browser on this device. A backup is one file in your Downloads; restore it on a new phone or after clearing the browser.</p></div>';
+
+    html += '<div class="panel"><h3>Your contacts</h3>';
+    if (demo) html += '<p class="fine">You’re looking at example contacts.</p>';
+    else html += '<ul class="facts">' +
+      fact('Brought in', info.at ? fmtDate(info.at) : '–') + fact('Contacts read', info.cards || 0) + fact('People after merging duplicates', info.people || 0) +
+      fact('Can come up', E.eligibleCount(state)) + fact('Without a phone number', info.noNumber || 0) + fact('Service numbers left out', info.serviceNumbers || 0) + '</ul>';
+    html += '<button class="btn" type="button" data-go="import">' + (demo ? 'Bring in your contacts' : 'Update from a new contacts file') + '</button>';
+    if (!demo) html += '<p class="fine">Updating keeps everything the app has learned about people already here.</p>';
+    html += '</div>';
+
+    html += '<div class="panel"><h3>Hidden from spins</h3>';
+    if (!hidden.length) html += '<p class="fine">Nobody. People you tag as a business or “Don’t suggest” appear here.</p>';
+    else {
+      html += '<ul class="plain-list">';
+      hidden.forEach(function (h) {
+        html += '<li><span><bdi>' + esc(h.name) + '</bdi> <span class="fine">· ' + (h.why === 'business' ? 'business' : 'don’t suggest') + '</span></span>' +
+          '<button class="btn btn-small" type="button" data-restore="' + esc(h.id) + '" data-why="' + h.why + '">Put back</button></li>';
+      });
+      html += '</ul>';
+    }
+    html += '</div>';
+
+    var mine = everydayStyle();
+    html += '<div class="panel"><h3>Your spin</h3><p class="fine">Tapping Spin plays your everyday spin. Press and hold Spin or Spin again for a fun spin: one of the others, a different one each time.</p>' +
+      '<div class="chips" role="radiogroup" aria-label="Everyday spin">' + SPIN_STYLES.map(function (x) {
+        return '<button class="chip" type="button" role="radio" data-everyday="' + x[0] + '" aria-checked="' + (x[0] === mine) + '" aria-pressed="' + (x[0] === mine) + '">' + x[1] + '</button>';
+      }).join('') + '</div></div>';
+
+    html += '<div class="panel"><h3>How often to try someone new</h3><div class="seg" role="group" aria-label="How often to try someone new">' +
+      seg(0.1, 'Less', rate) + seg(0.2, 'Normal', rate) + seg(0.3, 'More', rate) + '</div>' +
+      '<p class="fine">“Normal” tries someone the app knows little about on one spin in five.</p></div>';
+
+    html += '<div class="panel"><h3>About</h3><p class="fine"><b>Your relationships aren’t our data.</b> Your contacts and everything the app learns stay on this device. No account, no tracking, no ads. The app downloads only its own code.</p>' +
+      '<p class="fine">Keep in Touch v' + APP_VERSION + ' · engine ' + E.VERSION + '</p></div>';
+
+    if (!demo) html += '<div class="panel"><h3>Start over</h3>' +
+      '<p class="fine">Reset what it learned: forgets tags, hidden people and what your taps taught it. Keeps your contacts and history.</p>' +
+      '<button class="btn" type="button" id="reset-learning">' + (armed.reset ? 'Tap again to reset' : 'Reset what it learned') + '</button>' +
+      '<p class="fine">Erase everything: removes your contacts and history from this browser. Save a backup first if you might want it.</p>' +
+      '<button class="btn danger" type="button" id="erase">' + (armed.erase ? 'Tap again to erase everything' : 'Erase everything on this device') + '</button></div>';
+    $('settings-body').innerHTML = html;
+
+    $('file-backup').addEventListener('change', onBackupFile);
+    var timeEl = $('rem-time');
+    timeEl.addEventListener('change', function () {
+      if (!/^\d{2}:\d{2}$/.test(timeEl.value)) return;
+      state.settings.reminder = Object.assign({}, state.settings.reminder, { time: timeEl.value });
+      save();
+      $('rem-time-label').textContent = fmtClock(timeEl.value);
+      updateReminderLinks();
+    });
+    var ownEl = $('rem-own');
+    if (ownEl) ownEl.addEventListener('input', function () {
+      state.settings.reminder = Object.assign({}, state.settings.reminder, { moment: ownEl.value.replace(/\s+/g, ' ').trim().slice(0, 40) });
+      save();
+      updateReminderLinks();
+    });
+    var rs = $('reset-learning');
+    if (rs) rs.addEventListener('click', function () {
+      if (!armed.reset) { arm('reset'); return; }
+      clearTimeout(armed.reset); armed.reset = 0;
+      E.resetLearning(state, Date.now());
+      ui.pick = null; ui.mode = 'idle';
+      save(); toast('Reset. Your contacts and history are still here.'); renderSettings();
+    });
+    var er = $('erase');
+    if (er) er.addEventListener('click', function () {
+      if (!armed.erase) { arm('erase'); return; }
+      clearTimeout(armed.erase); armed.erase = 0;
+      try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+      demo = true; state = demoState(); ui.pick = null; ui.mode = 'idle';
+      toast('Erased. You’re back to the example contacts.');
+      go('spin');
+    });
+  }
+  function seg(value, label, rate) {
+    return '<button type="button" data-rate="' + value + '" aria-pressed="' + (Math.abs(rate - value) < 0.001 ? 'true' : 'false') + '">' + label + '</button>';
+  }
+
+  // ------------------------------------------------------------ importing and restoring
+  function readFile(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result || '')); };
+      r.onerror = function () { reject(r.error); };
+      r.readAsText(file);
+    });
+  }
+
+  function onVcfFile(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    showImportResult('<p class="fine" role="status">Reading your contacts… A big contact book can take a few seconds.</p>');
+    var unreadable = function () {
+      showImportResult('<h3>Couldn’t read that file</h3><p class="fine">Try exporting your contacts again, then choose the new file.</p>');
+    };
+    readFile(file).then(function (text) {
+      var parsed, info, next, wasDemo = demo;
+      try {
+        parsed = V.parse(text);
+        if (!parsed.cards.length) {
+          showImportResult('<h3>No contacts found in that file</h3><p class="fine">Choose the .vcf contacts file you exported from your phone. Other formats, such as CSV, won’t work here.</p>');
+          return;
+        }
+        // import into a copy, so a file that fails halfway leaves everything as it was
+        next = demo ? E.createState(Date.now()) : E.deserialize(E.serialize(state));
+        info = E.importCards(next, parsed.cards, Date.now());
+      } catch (e) { unreadable(); return; }
+      state = next;
+      demo = false;
+      save();
+      askToKeepData();
+      ui.pick = null; ui.mode = 'idle';
+      var html = '<h3>' + (wasDemo ? 'Your contacts are in' : 'Contacts updated') + '</h3><ul class="facts">' +
+        fact('Contacts read', info.cards) + fact('Duplicates merged', info.merged) + fact('People', info.people) +
+        fact('Without a phone number', info.noNumber) + fact('Service numbers left out', info.serviceNumbers) +
+        fact('Look like businesses (rarely come up)', info.likelyBusiness) + fact('Can come up', E.eligibleCount(state)) + '</ul>';
+      if (!wasDemo) html += '<p class="fine">' + info.added + ' new, ' + info.kept + ' kept with what was learned, ' + info.removed + ' no longer in the file.</p>';
+      html += '<p class="fine">If someone wrong comes up, tag them when you see them. That’s how it learns.</p>' +
+        '<button class="btn btn-call" type="button" data-go="spin">Start spinning</button>';
+      showImportResult(html);
+      renderBanner();
+    }, unreadable);
+  }
+  function showImportResult(html) { $('import-result').innerHTML = html; $('import-result').hidden = false; }
+
+  function onBackupFile(ev) {
+    var file = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!file) return;
+    readFile(file).then(function (text) {
+      var restored;
+      try { restored = E.deserialize(text); } catch (e) { toast(e && e.message ? e.message : 'That file isn’t a Keep in Touch backup.'); return; }
+      var count = Object.keys(restored.people).length;
+      openSheet('<h3 id="sheet-title">Restore this backup?</h3><p>From ' + esc(fmtDate(restored.updatedAt || Date.now())) + ', with ' + count + ' people and ' + restored.events.length + ' recorded events. It replaces what’s on this device now.</p>' +
+        '<div class="btn-row"><button class="btn btn-ink" type="button" id="sheet-restore">Restore</button><button class="btn" type="button" data-close>Cancel</button></div>',
+        function (root) {
+          root.querySelector('#sheet-restore').addEventListener('click', function () {
+            state = restored; demo = false; ui.pick = null; ui.mode = 'idle';
+            save(); askToKeepData(); closeSheet(); toast('Backup restored.'); go('spin');
+          });
+        });
+    }, function () { toast('Couldn’t read that file.'); });
+  }
+
+  // ------------------------------------------------------------ navigation
+  var VIEWS = ['spin', 'history', 'test', 'settings', 'import'];
+  function go(view) {
+    ui.view = view;
+    VIEWS.forEach(function (v) { $('view-' + v).hidden = v !== view; });
+    var tabs = document.querySelectorAll('.tab');
+    for (var i = 0; i < tabs.length; i++) {
+      var target = tabs[i].getAttribute('data-go');
+      var on = target === view || ((view === 'import' || view === 'test') && target === 'settings');
+      if (on) tabs[i].setAttribute('aria-current', 'page'); else tabs[i].removeAttribute('aria-current');
+    }
+    if (view !== 'import') $('import-result').hidden = true;
+    render();
+    try { window.scrollTo(0, 0); } catch (e) {}
+  }
+
+  function render() {
+    renderBanner();
+    if (ui.view === 'spin') renderSpin();
+    else if (ui.view === 'history') renderHistory();
+    else if (ui.view === 'test') renderTest();
+    else if (ui.view === 'settings') renderSettings();
+  }
+
+  // ------------------------------------------------------------ events
+  function bind() {
+    $('dial').addEventListener('click', function () { if (heldFun) { heldFun = false; return; } onDial('full'); });
+    holdForFun($('dial'));
+    var again = document.querySelectorAll('[data-action="reroll"], [data-action="spin"]');
+    for (var a = 0; a < again.length; a++) holdForFun(again[a]);
+    $('call').addEventListener('click', function (ev) {
+      if (demo) ev.preventDefault();
+      startCall();
+    });
+    $('copy').addEventListener('click', function (ev) {
+      var btn = ev.currentTarget;
+      var num = bestNumber(currentPerson());
+      if (!num) return;
+      copyText(num.raw, function (ok) {
+        btn.textContent = ok ? 'Copied' : 'Selected';
+        setTimeout(function () { btn.textContent = 'Copy number'; }, 1800);
+      }, $('pnumber'));
+      if (ui.mode === 'picked') startCall();
+    });
+    $('file-vcf').addEventListener('change', onVcfFile);
+    $('toast-undo').addEventListener('click', function () {
+      var u = toastUndo; toastUndo = null; $('toast').hidden = true;
+      if (u) u();
+    });
+    $('sheet-back').addEventListener('click', function (ev) { if (ev.target === ev.currentTarget || ev.target.hasAttribute('data-close')) closeSheet(); });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !$('sheet-back').hidden) closeSheet(); });
+    document.addEventListener('click', function (ev) {
+      // Share my stats says yes/no to "added the reminder" (an iPhone that adds it from Safari can't tell the app)
+      var cal = ev.target.closest ? ev.target.closest('#rem-add, #rem-ics') : null;
+      if (cal && !demo && !(cal.id === 'rem-ics' && appleCalBlocked)) { E.markReminderAdded(state, Date.now()); save(); }
+      var t = ev.target.closest ? ev.target.closest('[data-go],[data-action],[data-tag],[data-rate],[data-restore],[data-verdict],[data-day],[data-install],[data-backup],[data-snooze],[data-moment],[data-moment-own],[data-applecal],[data-everyday]') : null;
+      if (!t) return;
+      if (t.hasAttribute('data-applecal')) {
+        ev.preventDefault();
+        if (appleCalBlocked) appleCalHelp();
+        else offerFile('keep-in-touch-reminder.ics', reminderIcs(state.settings.reminder), 'Your reminder');
+        return;
+      }
+      if (t.hasAttribute('data-everyday')) {
+        state.settings.everyday = t.getAttribute('data-everyday');
+        save(); renderSettings(); toast('Your everyday spin: ' + t.textContent + '.');
+        return;
+      }
+      if (t.hasAttribute('data-moment')) {
+        var m = t.getAttribute('data-moment');
+        var preset = MOMENTS.filter(function (x) { return x[0] === m; })[0];
+        ownMoment = false;
+        state.settings.reminder = Object.assign({}, state.settings.reminder, { moment: m }, preset ? { time: preset[1] } : {});
+        save(); renderSettings(); return;
+      }
+      if (t.hasAttribute('data-moment-own')) {
+        ownMoment = true;
+        if (isPresetMoment(state.settings.reminder.moment)) state.settings.reminder = Object.assign({}, state.settings.reminder, { moment: '' });
+        save(); renderSettings();
+        if ($('rem-own')) $('rem-own').focus();
+        return;
+      }
+      if (t.hasAttribute('data-go')) { go(t.getAttribute('data-go')); return; }
+      if (t.hasAttribute('data-action')) { if (heldFun && /^(reroll|spin)$/.test(t.getAttribute('data-action'))) { heldFun = false; return; } onAction(t.getAttribute('data-action')); return; }
+      if (t.hasAttribute('data-tag')) { onTag(t.getAttribute('data-tag')); return; }
+      if (t.hasAttribute('data-backup')) { saveBackup(); return; }
+      if (t.hasAttribute('data-snooze')) { backupSnoozed = true; renderBanner(); return; }
+      if (t.hasAttribute('data-install')) {
+        if (!installPrompt) return;
+        var p = installPrompt;
+        installPrompt = null;
+        try { p.prompt(); p.userChoice.then(function () { render(); }, function () { render(); }); } catch (e) {}
+        return;
+      }
+      if (t.hasAttribute('data-rate')) {
+        state.settings.exploration = parseFloat(t.getAttribute('data-rate'));
+        save(); renderSettings(); return;
+      }
+      if (t.hasAttribute('data-verdict')) {
+        if (demo) { toast('Bring in your contacts first.'); return; }
+        E.recordVerdict(state, t.getAttribute('data-verdict'), Date.now());
+        save(); renderTest(); toast('Noted.'); return;
+      }
+      if (t.hasAttribute('data-day')) {
+        var d = parseInt(t.getAttribute('data-day'), 10);
+        var rem = state.settings.reminder;
+        var days = rem.days.indexOf(d) >= 0 ? rem.days.filter(function (x) { return x !== d; }) : rem.days.concat([d]).sort();
+        if (!days.length) { toast('Pick at least one day.'); return; }
+        state.settings.reminder = Object.assign({}, rem, { days: days });
+        save(); renderSettings(); return;
+      }
+      if (t.hasAttribute('data-restore')) {
+        E.act(state, t.getAttribute('data-restore'), t.getAttribute('data-why') === 'business' ? 'unbusiness' : 'unhide');
+        save(); renderSettings(); toast('Back in spins.');
+      }
+    });
+    window.addEventListener('beforeinstallprompt', function (ev) { ev.preventDefault(); installPrompt = ev; render(); });
+    window.addEventListener('appinstalled', function () { installPrompt = null; standalone = true; toast('Installed. Open it from your home screen.'); render(); });
+  }
+
+  function init() {
+    storageOK = storageAvailable();
+    state = storageOK ? loadSaved() : null;
+    if (!state) { demo = true; state = demoState(); }
+    else { lastSaved = state.updatedAt || 0; askToKeepData(); }
+    bind();
+    if (hosted && 'serviceWorker' in navigator) {
+      try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
+    }
+    var pend = state.pending;
+    if (!demo && pend && state.people[pend.id] && Date.now() - pend.at < 3 * DAY) {
+      ui.pick = { id: pend.id, mode: 'main', spinId: pend.s };
+      ui.mode = 'checkin';
+      ui.fromEarlier = true;
+    } else if (demo) {
+      // not recorded, so the person's own first tap still gets the full spin of the day
+      var r = E.spin(state, { now: Date.now(), record: false });
+      if (r) { ui.pick = r; ui.mode = 'picked'; }
+    }
+    render();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

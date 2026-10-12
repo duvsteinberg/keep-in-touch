@@ -1,0 +1,29 @@
+{
+  "name": "Keep in Touch",
+  "short_name": "Keep in Touch",
+  "description": "Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#edf1ee",
+  "theme_color": "#edf1ee",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
