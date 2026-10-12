@@ -23,7 +23,7 @@ In your browser's storage on your device, for this app only:
 
 - **Nothing, automatically.**
 - **Backups** are files you save yourself. A backup contains everything above, so keep it private.
-- **Share my stats** sends nothing by itself. It gives you a summary to copy or a file to save, with counts only: no names, numbers, ids or label names. It counts by kind of contact (for example "starred" or "company field filled in"), never by person. It also says yes or no to whether you added the daily reminder, never its time or wording.
+- **Share my stats** sends nothing by itself. It gives you a summary to send by WhatsApp or email, copy, or save as a file, with counts only: no names, numbers, ids or label names. **Send by WhatsApp** and **Send by email** open WhatsApp or your email app with the summary filled in; you choose who gets it, and nothing goes until you press send there. (If WhatsApp isn't installed, the link opens WhatsApp's website, which then sees the summary.) It counts by kind of contact (for example "starred" or "company field filled in"), never by person. It also says yes or no to whether you added the daily reminder, never its time or wording.
 - **Calls:** tapping Call hands the number to your phone's dialer. The app can't see whether the call happened unless you tell it.
 - **The daily reminder** opens Google Calendar with a prefilled event, or, for Apple Calendar, makes a calendar file on your phone. Only the reminder’s wording (including a moment you type, such as “After lunch”), its time and days go there, never your contacts.
 
