@@ -1,10 +1,21 @@
 # Keep in Touch
 
+[![Check](https://github.com/duvsteinberg/keep-in-touch/actions/workflows/check.yml/badge.svg?branch=main)](https://github.com/duvsteinberg/keep-in-touch/actions/workflows/check.yml)
+[![Latest release](https://img.shields.io/github/v/release/duvsteinberg/keep-in-touch?label=release)](https://github.com/duvsteinberg/keep-in-touch/releases)
+[![License: all rights reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey)](LICENSE)
+
 **Spin. Call. Connect.** A small phone app that picks someone from your contacts to call today, learns from what you do, and keeps everything on your phone.
 
 The app is not where the relationship happens. A good session is ten seconds in the app and a long conversation somewhere else.
 
 **Open the app:** https://duvsteinberg.github.io/keep-in-touch/ · **Guide:** [the wiki](https://github.com/duvsteinberg/keep-in-touch/wiki) · **What changed:** [CHANGELOG.md](CHANGELOG.md) and [releases](https://github.com/duvsteinberg/keep-in-touch/releases)
+
+<p align="center">
+  <img src="assets/screenshot-1.jpg" width="220" alt="The welcome screen: Who are you calling today? Your contacts never leave your phone.">
+  <img src="assets/screenshot-2.jpg" width="220" alt="The prize wheel spinning through example contacts">
+  <img src="assets/screenshot-3.jpg" width="220" alt="Today's pick, with Call and Spin again">
+</p>
+<p align="center"><sub>Shown with the app's invented example contacts.</sub></p>
 
 ## Status
 
