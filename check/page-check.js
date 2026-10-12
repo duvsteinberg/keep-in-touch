@@ -217,8 +217,22 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   };
   await openSettings();
   const overview = await page.evaluate(() => [...document.querySelectorAll('#settings-body .row')].map((r) => r.querySelector('.row-title').textContent + (r.querySelector('.row-value') ? '' : ' (no value)')));
-  ok(overview.join(', ') === 'Your test, Daily reminder, Your spin, Someone new, Contacts, Hidden from spins, Backup, Home screen, Help and feedback, About, Start over',
-    'Settings is one overview of rows grouped by task, each showing its current value: ' + overview.join(', '));
+  ok(overview.join(', ') === 'Your test, Daily reminder, Appearance, Someone new, Contacts, Hidden from spins, Backup, Home screen, Help and feedback, Start over' &&
+    /Keep in Touch v\d+\.\d+\.\d+ · engine /.test(await page.textContent('#settings-foot')),
+    'Settings is one overview of rows grouped by task, each showing its current value, with the version at the bottom: ' + overview.join(', '));
+  // Appearance: colors follow the phone unless you choose light or dark, and the choice stays after a restart
+  await openSettings('appearance');
+  const themeNow = () => page.evaluate(() => ({ attr: document.documentElement.getAttribute('data-theme'), bg: getComputedStyle(document.body).backgroundColor, bars: [...document.querySelectorAll('meta[name="theme-color"]')].map((m) => m.content).join(',') }));
+  const followPhone = await themeNow();
+  await page.click('[data-theme-choice="dark"]');
+  await page.reload();
+  await sleep(500);
+  const forcedDark = await themeNow();
+  await openSettings('appearance');
+  await page.click('[data-theme-choice=""]');
+  const backToPhone = await themeNow();
+  ok(followPhone.attr === null && forcedDark.attr === 'dark' && forcedDark.bg === 'rgb(13, 19, 17)' && forcedDark.bars === '#0d1311,#0d1311' && backToPhone.attr === null && backToPhone.bg === followPhone.bg,
+    'Appearance: the colors follow the phone, or stay dark when you choose Dark (also after a restart, top bar included), and follow the phone again');
   await openSettings('reminder');
   const remHref = await page.getAttribute('#rem-add', 'href');
   ok(remHref.startsWith('https://calendar.google.com/calendar/render?') && remHref.includes('recur=RRULE%3AFREQ%3DWEEKLY%3BBYDAY%3DSU%2CMO%2CTU%2CWE%2CTH') && remHref.includes('ctz='),
@@ -364,7 +378,7 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   for (const style of ['reel', 'orbit', 'deal', 'board', 'spotlight', 'classic', 'phone', 'tuner', 'wheel']) {
     await openSettings('reset');
     await page.click('#reset-learning'); await page.click('#reset-learning'); await sleep(100);
-    await openSettings('spin');
+    await openSettings('appearance');
     await page.click('[data-everyday="' + style + '"]');
     await page.click('.tab[data-go="spin"]');
     const r = await spinKind('#dial', 300);
@@ -374,7 +388,7 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     everyStyle.map((x) => timed(x.r, x.style) + (x.r.kind.startsWith(x.style === 'reel' ? 'full' : x.style) ? '' : ' (played ' + x.r.kind + ')')).join(', '));
   await openSettings('reset');
   await page.click('#reset-learning'); await page.click('#reset-learning'); await sleep(100);
-  await openSettings('spin');
+  await openSettings('appearance');
   await page.click('[data-everyday="orbit"]');
   ok((await page.getAttribute('[data-everyday="orbit"]', 'aria-checked')) === 'true', 'Settings lets you choose your everyday spin');
   await page.click('.tab[data-go="spin"]');
@@ -400,7 +414,7 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   await page.setViewportSize(phoneSize);
   ok(short.pad === '' && short.top >= 0 && short.top <= 60 && short.bottom > short.tabs,
     'on a short screen the card goes to the top (card top ' + short.top + ' px, tabs at ' + short.tabs + ')');
-  await openSettings('spin');
+  await openSettings('appearance');
   await page.click('[data-everyday="reel"]');
   await page.click('.tab[data-go="spin"]');
   await page.click('#dial');

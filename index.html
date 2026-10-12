@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-8sD7J50jxml47BujCUaPA6aHQ+7gNJVBiplku80zNPg='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-ByRj0FqO0yA/EBhFlEoUbqm+CjLLUlsi7v9RvkNAS7Q='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="description" content="Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.">
 <meta name="theme-color" content="#edf1ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">
@@ -44,6 +44,7 @@
     --w1: #1f3b2f; --w2: #18211d; --w3: #2b5843; --w4: #1d2723;
   }
 }
+:root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] {
   --paper: #0d1311; --surface: #151d1a; --ink: #e3ebe7; --muted: #95a49e; --line: #28332f; --soft: #1d2723;
   --call: #2fa877; --call-ink: #03100a; --dial: #d2ddd8; --dial-ink: #0d1311; --alert: #e3a55b; --alert-soft: #2b2117;
@@ -197,6 +198,8 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 .chev { flex: 0 0 auto; color: var(--muted); font-size: 1.4rem; line-height: 1; }
 .tick { flex: 0 0 auto; min-width: 1.2em; color: var(--call); font-weight: 700; font-size: 1.1rem; text-align: center; }
 .btn-col { display: grid; gap: 8px; }
+.group-note { margin: 0 4px 2px; }
+.settings-foot { margin: 6px 4px 0; color: var(--muted); font-size: 0.8rem; line-height: 1.5; text-align: center; }
 .btn-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .btn-pair .btn { padding: 0 10px; }
 .btn-green { background: var(--call); border-color: var(--call); color: var(--call-ink); }
@@ -2800,9 +2803,19 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   // Like the phone's own Settings app: a short overview where each row names a setting and shows its current value,
   // grouped by task, and each row opens its own page. Rarely used and risky things sit at the bottom.
   var SETTINGS_PAGES = {
-    reminder: 'Daily reminder', spin: 'Your spin', explore: 'Someone new', contacts: 'Contacts', hidden: 'Hidden from spins',
-    backup: 'Backup', install: 'Home screen', help: 'Help and feedback', about: 'About', reset: 'Start over',
+    reminder: 'Daily reminder', appearance: 'Appearance', explore: 'Someone new', contacts: 'Contacts', hidden: 'Hidden from spins',
+    backup: 'Backup', install: 'Home screen', help: 'Help and feedback', reset: 'Start over',
   };
+  // Colors: follow the phone (the default), or always light or always dark. Kept with the other settings, so a backup carries it.
+  var THEMES = [['', 'Phone’s setting', 'Light or dark, like the rest of your phone'], ['light', 'Light', ''], ['dark', 'Dark', '']];
+  var THEME_BARS = { light: '#edf1ee', dark: '#0d1311' }; // the bar at the top of the installed app (same as --paper)
+  function themeChoice() { var t = state && state.settings && state.settings.theme; return t === 'light' || t === 'dark' ? t : ''; }
+  function applyTheme() {
+    var t = themeChoice(), root = document.documentElement;
+    if (t) root.setAttribute('data-theme', t); else root.removeAttribute('data-theme');
+    var bars = document.querySelectorAll('meta[name="theme-color"]');
+    for (var i = 0; i < bars.length; i++) bars[i].setAttribute('content', THEME_BARS[t || (/dark/.test(bars[i].getAttribute('media') || '') ? 'dark' : 'light')]);
+  }
   var RATES = [[0.1, 'Less', 'about 1 spin in 10'], [0.2, 'Normal', 'about 1 spin in 5'], [0.3, 'More', 'about 1 spin in 3']];
   function exploreRate() { return state.settings && typeof state.settings.exploration === 'number' ? state.settings.exploration : E.PARAMS.exploration; }
   function rateInfo(rate) { return RATES.filter(function (r) { return Math.abs(r[0] - rate) < 0.001; })[0] || [rate, 'Custom', 'about ' + Math.round(rate * 100) + '% of spins']; }
@@ -2845,7 +2858,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       plural(sAll.wouldNotHave, 'call', 'calls') + ' you wouldn’t have made otherwise' : 'Starts with your first spin'), 'row-test'));
     html += group('Every day',
       row('data-sub="reminder"', 'Daily reminder', esc((rem.moment ? rem.moment + ' · ' : '') + fmtClock(rem.time) + ' · ' + daysText(rem.days))) +
-      row('data-sub="spin"', 'Your spin', esc(style ? style[1] : 'Prize wheel')) +
+      row('data-sub="appearance"', 'Appearance', esc((style ? style[1] : 'Prize wheel') + ' · ' + THEMES.filter(function (x) { return x[0] === themeChoice(); })[0][1])) +
       row('data-sub="explore"', 'Someone new', esc(rateInfo(exploreRate())[1] + ': ' + rateInfo(exploreRate())[2])));
     var backupValue = demo ? esc('Nothing to back up yet') : !storageOK ? warn('This browser isn’t keeping your data')
       : lb ? (now - lb > 7 * DAY ? warn('Last backup: ' + fmtDate(lb)) : esc('Last backup: ' + fmtDate(lb))) : warn('No backup yet');
@@ -2855,9 +2868,9 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       row('data-sub="backup"', 'Backup', backupValue));
     html += group('App',
       (hosted || standalone ? row('data-sub="install"', 'Home screen', esc(standalone ? 'Installed' : 'Not installed')) : '') +
-      row('data-sub="help"', 'Help and feedback', esc('Send a help report')) +
-      row('data-sub="about"', 'About', esc('v' + APP_VERSION + ' · nothing leaves this device')));
+      row('data-sub="help"', 'Help and feedback', esc('Send a help report')));
     if (!demo) html += group('', row('data-sub="reset"', 'Start over', esc('Reset what it learned, or erase everything'), 'row-danger'));
+    html += '<p class="settings-foot" id="settings-foot">Keep in Touch v' + APP_VERSION + ' · engine ' + esc(E.VERSION) + '<br>Your relationships aren’t our data: your contacts and everything the app learns stay on this device.</p>';
     return html;
   }
 
@@ -2883,10 +2896,11 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       html += '<div class="panel"><p class="rem-preview">It will say <b id="rem-preview">“' + esc(reminderTitle(rem)) + '”</b></p>' +
         '<div class="btn-col">' + (appleDevice ? apple + google : google) + '</div>' +
         '<p class="fine">Your calendar asks you to save it and alerts you at that time. To change it, set it here again, add it again, and delete the old one in your calendar.</p></div>';
-    } else if (sub === 'spin') {
-      var mine = everydayStyle();
-      html += '<p class="sub">Spin plays your everyday spin, and Spin again plays it quickly. Press and hold either one for a fun spin: one of the others.</p>';
-      html += group('', SPIN_STYLES.map(function (x) { return choice('data-everyday="' + x[0] + '"', x[1], SPIN_NOTES[x[0]], x[0] === mine); }).join(''), 'Everyday spin');
+    } else if (sub === 'appearance') {
+      var mine = everydayStyle(), theme = themeChoice();
+      html += group('Colors', THEMES.map(function (x) { return choice('data-theme-choice="' + x[0] + '"', x[1], x[2], x[0] === theme); }).join(''), 'Colors');
+      html += '<div class="group"><h3 class="group-title">Your spin</h3><p class="fine group-note">Spin plays your everyday spin, and Spin again plays it quickly. Press and hold either one for a fun spin: one of the others.</p>' +
+        '<div class="rows" role="radiogroup" aria-label="Everyday spin">' + SPIN_STYLES.map(function (x) { return choice('data-everyday="' + x[0] + '"', x[1], SPIN_NOTES[x[0]], x[0] === mine); }).join('') + '</div></div>';
     } else if (sub === 'explore') {
       var rate = exploreRate();
       html += '<p class="sub">How often a spin tries someone the app knows little about yet.</p>';
@@ -2940,9 +2954,6 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
         '<p class="fine">WhatsApp or your email app opens with the report filled in. Nothing is sent until you choose who gets it and press send there.</p></div>';
       html += '<div class="panel"><h3>What the report includes</h3><p class="fine">The app’s version, your phone’s system and browser, the screen size, counts of contacts, spins and calls, your choices in Settings and the last few errors. The app never adds names, phone numbers, labels or the reminder’s wording.</p>' +
         '<p class="fine share-text" id="help-text"></p></div>';
-    } else if (sub === 'about') {
-      html += '<div class="panel"><p><b>Your relationships aren’t our data.</b> Your contacts and everything the app learns stay on this device. No account, no tracking, no ads. The app downloads only its own code.</p>' +
-        '<ul class="facts">' + fact('Version', 'v' + APP_VERSION) + fact('Engine', esc(E.VERSION)) + '</ul></div>';
     } else if (sub === 'reset') {
       html += '<div class="panel"><h3>Reset what it learned</h3><p class="fine">Forgets tags, hidden people and what your taps taught it. Keeps your contacts and history.</p>' +
         '<button class="btn" type="button" id="reset-learning">' + (armed.reset ? 'Tap again to reset' : 'Reset what it learned') + '</button></div>' +
@@ -3048,7 +3059,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
         ' · dark mode ' + (dark ? 'on' : 'off') + ' · language ' + (navigator.language || 'not known'),
       'Contacts: ' + (info.cards || 0) + ' read · ' + (info.people || 0) + ' people · ' + E.eligibleCount(state) + ' can come up · ' + E.hiddenPeople(state).length + ' hidden',
       'Use: ' + (E.testStart(state) ? 'day ' + testDay(now) + ' since the first spin' : 'no spins yet') + ' · ' + plural(s.spins, 'spin') + ' · ' + plural(s.calls, 'call'),
-      'Settings: everyday spin ' + everydayStyle() + ' · someone new ' + rateInfo(exploreRate())[1].toLowerCase() + ' · reminder added to a calendar: ' + (state.settings.reminderAddedAt ? 'yes' : 'no'),
+      'Settings: everyday spin ' + everydayStyle() + ' · colors ' + (themeChoice() || 'phone') + ' · someone new ' + rateInfo(exploreRate())[1].toLowerCase() + ' · reminder added to a calendar: ' + (state.settings.reminderAddedAt ? 'yes' : 'no'),
       'Recent errors: ' + (errors.length ? errors.length : 'none'),
     ];
     errors.forEach(function (e) { lines.push('- ' + new Date(e.t).toISOString().slice(0, 16).replace('T', ' ') + ' UTC, v' + e.v + ': ' + e.m + (e.at ? ' (' + e.at + ')' : '')); });
@@ -3179,6 +3190,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   }
 
   function render() {
+    applyTheme(); // the colors you chose, also after a restore or erase
     renderBanner();
     if (ui.view === 'spin') renderSpin();
     else if (ui.view === 'history') renderHistory();
@@ -3217,7 +3229,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       // Share my stats says yes/no to "added the reminder" (an iPhone that adds it from Safari can't tell the app)
       var cal = ev.target.closest ? ev.target.closest('#rem-add, #rem-ics') : null;
       if (cal && !demo && !(cal.id === 'rem-ics' && appleCalBlocked)) { E.markReminderAdded(state, Date.now()); save(); }
-      var t = ev.target.closest ? ev.target.closest('[data-go],[data-action],[data-tag],[data-rate],[data-restore],[data-verdict],[data-day],[data-install],[data-backup],[data-snooze],[data-moment],[data-moment-own],[data-applecal],[data-everyday],[data-sub],[data-back]') : null;
+      var t = ev.target.closest ? ev.target.closest('[data-go],[data-action],[data-tag],[data-rate],[data-restore],[data-verdict],[data-day],[data-install],[data-backup],[data-snooze],[data-moment],[data-moment-own],[data-applecal],[data-everyday],[data-theme-choice],[data-sub],[data-back]') : null;
       if (!t) return;
       if (t.hasAttribute('data-applecal')) {
         ev.preventDefault();
@@ -3228,6 +3240,11 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       if (t.hasAttribute('data-everyday')) {
         state.settings.everyday = t.getAttribute('data-everyday');
         save(); renderSettings(); toast('Your everyday spin: ' + (t.querySelector('.row-title') || t).textContent + '.');
+        return;
+      }
+      if (t.hasAttribute('data-theme-choice')) {
+        state.settings.theme = t.getAttribute('data-theme-choice');
+        save(); applyTheme(); renderSettings();
         return;
       }
       if (t.hasAttribute('data-moment')) {
