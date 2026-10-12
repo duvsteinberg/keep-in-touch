@@ -2,6 +2,15 @@
 
 What changed in each version of Keep in Touch, newest first. Releases: https://github.com/duvsteinberg/keep-in-touch/releases
 
+## v0.1.7 · 2026-10-13
+
+- **A new Settings page.** One short overview, like your phone's own Settings app: each row names a setting and shows its current value (for example "Daily reminder: 8:00 p.m. · Sun–Thu"), grouped by task (Every day · Contacts and backup · App), and each row opens its own page. Start over sits alone at the bottom. It used to be ten boxes on one long page.
+- **Your spin** and **Someone new** are lists with a tick on your choice, and each spin style says in a few words what it looks like.
+- **Help and feedback:** a help report to send by WhatsApp or email (you choose who gets it), with an optional "What happened?". It holds the app's version, the phone's system and browser, counts, your choices in Settings and the last few errors. Never names, numbers or labels.
+- **The phone's back gesture** goes back a step, from any Settings page, Your test or Bring in your contacts, instead of closing the app.
+- WhatsApp and email buttons are the same size, side by side.
+- The engine is unchanged (0.1.9).
+
 ## v0.1.6 · 2026-10-12
 
 - **The app turns with the phone.** It used to stay upright when the phone was turned sideways. An app already on the home screen may take a day to pick this up; adding it to the home screen again makes it immediate (your contacts stay, they're kept in the browser).

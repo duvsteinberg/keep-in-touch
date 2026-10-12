@@ -205,8 +205,21 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     'Spin again after the first spin of the day plays the everyday spin quickly: ' + [...quickKinds].join(', ') + ', slowest ' + (slowest / 1000).toFixed(2) + ' s (' + spins + ' spins)');
   ok(nudgeOk, '"People usually appreciate a call" shows on someone new to try, and only there (' + explored + ' of ' + spins + ' were someone new)');
 
-  // settings: reminder, backup, test checkpoint, verdict, reset learning
-  await page.click('.tab[data-go="settings"]');
+  // settings: an overview of rows, each opening its own page; reminder, backup, test checkpoint, verdict, help report, reset learning
+  // (the Settings tab always comes back to the overview)
+  const openSettings = async (sub) => {
+    await page.click('.tab[data-go="settings"]');
+    await page.waitForFunction(() => !document.getElementById('view-settings').hidden && document.getElementById('settings-title').textContent === 'Settings', null, { timeout: 3000 });
+    if (sub) {
+      await page.click('[data-sub="' + sub + '"]');
+      await page.waitForFunction(() => !document.getElementById('settings-back').hidden, null, { timeout: 3000 });
+    }
+  };
+  await openSettings();
+  const overview = await page.evaluate(() => [...document.querySelectorAll('#settings-body .row')].map((r) => r.querySelector('.row-title').textContent + (r.querySelector('.row-value') ? '' : ' (no value)')));
+  ok(overview.join(', ') === 'Your test, Daily reminder, Your spin, Someone new, Contacts, Hidden from spins, Backup, Home screen, Help and feedback, About, Start over',
+    'Settings is one overview of rows grouped by task, each showing its current value: ' + overview.join(', '));
+  await openSettings('reminder');
   const remHref = await page.getAttribute('#rem-add', 'href');
   ok(remHref.startsWith('https://calendar.google.com/calendar/render?') && remHref.includes('recur=RRULE%3AFREQ%3DWEEKLY%3BBYDAY%3DSU%2CMO%2CTU%2CWE%2CTH') && remHref.includes('ctz='),
     'reminder link: weekly, Sunday to Thursday, with time zone');
@@ -227,7 +240,7 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     'your own moment goes into the reminder');
   await page.reload();
   await sleep(500);
-  await page.click('.tab[data-go="settings"]');
+  await openSettings('reminder');
   ok((await page.inputValue('#rem-own')) === 'After lunch' && (await page.inputValue('#rem-time')) === '08:00', 'the reminder is still set after a restart');
   if (iphone) {
     const [icsFile] = await Promise.all([page.waitForEvent('download', { timeout: 3000 }).catch(() => null), page.click('#rem-ics')]);
@@ -244,10 +257,19 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   ok((await googleText()) === 'Who are you calling today?', '"Just a time" goes back to the plain reminder');
   // tapping "Add to Google Calendar" (kept on this page here) is counted, yes or no, for Share my stats
   await page.evaluate(() => { const a = document.getElementById('rem-add'); a.addEventListener('click', (e) => e.preventDefault(), { once: true }); a.click(); });
+  await page.evaluate(() => history.back());
+  const backed = await page.waitForFunction(() => document.getElementById('settings-title').textContent === 'Settings' && document.getElementById('settings-back').hidden, null, { timeout: 3000 }).then(() => true, () => false);
+  const afterBack = await page.evaluate(() => document.getElementById('settings-title').textContent + (document.getElementById('settings-back').hidden ? '' : ' (still a page)'));
+  ok(backed && page.url().split('#')[0] === base, // still in the app (an earlier example Call left a # on the address)
+    'the phone’s back gesture goes from a Settings page back to the overview, not out of the app (' + afterBack + ', ' + page.url().replace(base, '/') + ')');
+  ok((await page.textContent('[data-sub="reminder"] .row-value')).includes('8:00 a.m.'), 'the overview shows the reminder’s current time');
+  await openSettings('backup');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 3000 }).catch(() => null), page.click('#settings-body [data-backup]')]);
   ok(!!dl, 'Save a backup downloads a file' + (dl ? ': ' + dl.suggestedFilename() : ''));
   await sleep(200);
-  ok((await page.textContent('#settings-body')).includes('Last backup:'), 'settings shows when you last backed up');
+  await page.click('#settings-back');
+  await page.waitForFunction(() => document.getElementById('settings-back').hidden, null, { timeout: 3000 }).catch(() => {});
+  ok((await page.textContent('[data-sub="backup"] .row-value')).includes('Last backup:'), 'the ← button goes back, and the overview shows when you last backed up');
   await page.screenshot({ path: shots + '/' + (iphone ? 'iphone-' : '') + 'v01-settings.png', fullPage: true });
 
   await page.click('#settings-body [data-go="test"]');
@@ -270,7 +292,25 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     'Send by WhatsApp and Send by email open with the same summary filled in, and no one chosen for you');
   await page.screenshot({ path: shots + '/' + (iphone ? 'iphone-' : '') + 'v01-test.png', fullPage: true });
 
-  await page.click('.tab[data-go="settings"]');
+  // the help report: technical facts and counts, the tester's own words, recent errors with quotes and long numbers taken out
+  const errorsBeforeHelp = errors.length;
+  await page.evaluate(() => setTimeout(() => { throw new Error('test failure for "Rachel Stone" at 0501234567'); }, 0));
+  await sleep(200);
+  errors.splice(errorsBeforeHelp); // this test's own error
+  await openSettings('help');
+  await page.fill('#help-note', 'The wheel froze once');
+  const help = await page.evaluate(() => ({ text: document.getElementById('help-text').textContent, wa: document.getElementById('help-wa').getAttribute('href'), mail: document.getElementById('help-mail').getAttribute('href') }));
+  const helpLeaked = ['Rachel', 'Josh', 'Carter', 'Mom', 'Dana', 'Pizza', 'Steve', 'Sarah', 'David', 'José', 'Friends', '050', '052', 'Stone'].filter((w) => help.text.includes(w));
+  ok(help.text.startsWith('Keep in Touch help report\nWhat happened: The wheel froze once\n') && /App: v\d+\.\d+\.\d+ · engine /.test(help.text) &&
+    new RegExp('Phone: ' + (iphone ? 'iOS' : 'Android') + ' ').test(help.text) && /Contacts: 12 read · 11 people/.test(help.text) &&
+    /Recent errors: 1\n- .*test failure for … at #/.test(help.text) && helpLeaked.length === 0,
+    'the help report has the version, phone, counts, your words and recent errors, and no names, labels or numbers' + (helpLeaked.length ? ': ' + helpLeaked.join(', ') : ''));
+  ok(decodeURIComponent(help.wa.slice('https://wa.me/?text='.length)) === help.text && help.wa.startsWith('https://wa.me/?text=') &&
+    help.mail.startsWith('mailto:?subject=Keep%20in%20Touch%20help%20report&body=') && decodeURIComponent(help.mail.split('&body=')[1]).replace(/\r\n/g, '\n') === help.text,
+    'Send by WhatsApp and Send by email open with the help report filled in, and no one chosen for you');
+  await page.evaluate(() => localStorage.removeItem('kit.v0.errors'));
+
+  await openSettings('reset');
   await page.click('#reset-learning');
   await page.click('#reset-learning');
   await sleep(100);
@@ -315,15 +355,16 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   ok(fulls.concat([quick], funs).every((r) => r.guarded), 'nothing can be selected while a spin plays, and selecting works again once it lands');
   const funCount = await page.evaluate(() => JSON.parse(localStorage.getItem('kit.v0.state')).events.filter((e) => e.k === 'show' && e.f).length);
   ok(funCount === 4, 'the engine marks the fun spins (' + funCount + ')');
-  await page.click('.tab[data-go="settings"]');
+  await openSettings();
   await page.click('#settings-body [data-go="test"]');
   const shared = await page.textContent('#share-text');
   ok(/Everyday spin: wheel · fun spins: 4, calls from them: 0/.test(shared) && /fun spins\): w1 \d+·\d+·\d+·4/.test(shared), 'Share my stats counts the fun spins, in all and week by week');
   // every style, chosen as the everyday spin, plays on a tap and lands by itself (a fresh start each time, so the small book never runs out)
   const everyStyle = [];
   for (const style of ['reel', 'orbit', 'deal', 'board', 'spotlight', 'classic', 'phone', 'tuner', 'wheel']) {
-    await page.click('.tab[data-go="settings"]');
+    await openSettings('reset');
     await page.click('#reset-learning'); await page.click('#reset-learning'); await sleep(100);
+    await openSettings('spin');
     await page.click('[data-everyday="' + style + '"]');
     await page.click('.tab[data-go="spin"]');
     const r = await spinKind('#dial', 300);
@@ -331,8 +372,9 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   }
   ok(everyStyle.every((x) => x.right), 'each of the nine styles plays when chosen and lands (the reel on the pick): ' +
     everyStyle.map((x) => timed(x.r, x.style) + (x.r.kind.startsWith(x.style === 'reel' ? 'full' : x.style) ? '' : ' (played ' + x.r.kind + ')')).join(', '));
-  await page.click('.tab[data-go="settings"]');
+  await openSettings('reset');
   await page.click('#reset-learning'); await page.click('#reset-learning'); await sleep(100);
+  await openSettings('spin');
   await page.click('[data-everyday="orbit"]');
   ok((await page.getAttribute('[data-everyday="orbit"]', 'aria-checked')) === 'true', 'Settings lets you choose your everyday spin');
   await page.click('.tab[data-go="spin"]');
@@ -358,7 +400,7 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   await page.setViewportSize(phoneSize);
   ok(short.pad === '' && short.top >= 0 && short.top <= 60 && short.bottom > short.tabs,
     'on a short screen the card goes to the top (card top ' + short.top + ' px, tabs at ' + short.tabs + ')');
-  await page.click('.tab[data-go="settings"]');
+  await openSettings('spin');
   await page.click('[data-everyday="reel"]');
   await page.click('.tab[data-go="spin"]');
   await page.click('#dial');

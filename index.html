@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-dHyw9ObXgt08MMmMuZLZuUr4296pIRUESOPOJUNJJ0I='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-TykEiA6FVNqtJK8tK0PxKx26FiBfeeD7s7tq5NtptOY=' 'sha256-lB2YuT0W1g5YJQoLNEQowhq0w7r+bMQHFPkGnlNF5h4=' 'sha256-8sD7J50jxml47BujCUaPA6aHQ+7gNJVBiplku80zNPg='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="description" content="Spin. Call. Connect. Picks someone from your contacts to call, and keeps everything on your phone.">
 <meta name="theme-color" content="#edf1ee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0d1311" media="(prefers-color-scheme: dark)">
@@ -180,6 +180,29 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 .view-title { margin: 4px 0 0; font-family: var(--font-display); font-weight: 600; font-size: 1.6rem; line-height: 1.15; text-wrap: balance; }
 .sub { margin: 0; color: var(--muted); }
 .back { justify-self: start; min-height: 36px; padding: 0 2px; border: 0; background: none; color: var(--muted); font-weight: 600; cursor: pointer; }
+/* Settings: grouped rows like the phone's own Settings app; each row names a setting and shows its current value */
+.group { display: grid; gap: 6px; }
+.group-title { margin: 8px 4px 0; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.rows { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; box-sizing: border-box; padding: 10px 14px 10px 16px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rows > .row:first-child { border-top: 0; }
+.row:active { background: var(--soft); }
+.row:focus-visible { outline: 3px solid var(--call); outline-offset: -3px; }
+.row-text { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.row-title { font-weight: 600; }
+.row-value { color: var(--muted); font-size: 0.86rem; overflow-wrap: anywhere; }
+.row-value .warn { color: var(--alert); font-weight: 600; }
+.row-test .row-title { color: var(--call); }
+.row-danger .row-title { color: var(--alert); }
+.chev { flex: 0 0 auto; color: var(--muted); font-size: 1.4rem; line-height: 1; }
+.tick { flex: 0 0 auto; min-width: 1.2em; color: var(--call); font-weight: 700; font-size: 1.1rem; text-align: center; }
+.btn-col { display: grid; gap: 8px; }
+.btn-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.btn-pair .btn { padding: 0 10px; }
+.btn-green { background: var(--call); border-color: var(--call); color: var(--call-ink); }
+.field-label { font-weight: 600; }
+.note { width: 100%; box-sizing: border-box; min-height: 96px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: inherit; resize: vertical; }
+.note:focus-visible { outline: 3px solid var(--call); outline-offset: 1px; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
 .panel h3 { margin: 0; font-size: 1rem; }
 .fine { margin: 0; color: var(--muted); font-size: 0.85rem; }
@@ -335,7 +358,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 
     <!-- YOUR TEST: the four-week tester round (opened from Settings) -->
     <section id="view-test" class="stack" hidden aria-label="Your test">
-      <button class="back" type="button" data-go="settings">← Settings</button>
+      <button class="back" type="button" data-back>← Settings</button>
       <h2 class="view-title">Your test</h2>
       <p class="sub" id="test-sub"></p>
       <div id="test-body" class="stack"></div>
@@ -343,13 +366,14 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 
     <!-- SETTINGS -->
     <section id="view-settings" class="stack" hidden aria-label="Settings">
-      <h2 class="view-title">Settings</h2>
+      <button class="back" type="button" id="settings-back" data-back hidden>← Settings</button>
+      <h2 class="view-title" id="settings-title">Settings</h2>
       <div id="settings-body" class="stack"></div>
     </section>
 
     <!-- IMPORT -->
     <section id="view-import" class="stack" hidden aria-label="Bring in your contacts">
-      <button class="back" type="button" data-go="settings">← Settings</button>
+      <button class="back" type="button" data-back>← Back</button>
       <h2 class="view-title">Bring in your contacts</h2>
       <div class="panel" id="import-steps">
         <ol class="steps">
@@ -1657,7 +1681,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   'use strict';
   var E = window.KITEngine;
   var V = window.KITVcard;
-  var APP_VERSION = '0.1.6';
+  var APP_VERSION = '0.1.7';
   var DAY = 86400000;
   var STORE_KEY = 'kit.v0.state'; // unchanged from v0 so existing progress carries over
   var reduced = false;
@@ -1723,7 +1747,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   var persisted = null;          // has the browser agreed to keep this site's data?
   var installPrompt = null;      // Chrome's install offer, when it makes one
   var backupSnoozed = false;
-  var ui = { view: 'spin', mode: 'idle', pick: null, outcome: '', would: '', fromEarlier: false, spinning: false, tagged: '', why: null };
+  var ui = { view: 'spin', sub: '', mode: 'idle', pick: null, outcome: '', would: '', fromEarlier: false, spinning: false, tagged: '', why: null };
 
   function storageAvailable() {
     try { localStorage.setItem('kit.test', '1'); localStorage.removeItem('kit.test'); return true; } catch (e) { return false; }
@@ -2395,6 +2419,11 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
   // Every style. Spin and Spin again play your everyday spin (Settings; the prize wheel unless you choose another),
   // Spin again sped up; holding plays one of the others.
   var SPIN_STYLES = [['reel', 'Reel'], ['orbit', 'Orbit'], ['deal', 'Deal'], ['board', 'Board'], ['spotlight', 'Spotlight'], ['classic', 'Classic dial'], ['phone', 'Telephone'], ['tuner', 'Tuner'], ['wheel', 'Prize wheel']];
+  var SPIN_NOTES = {
+    reel: 'Names stream past and slow down', orbit: 'Names circle, and one steps out', deal: 'Contact cards are dealt',
+    board: 'Letters flip, like a departure board', spotlight: 'A highlight hops between names', classic: 'A rotary dial dials the number',
+    phone: 'An old telephone rings', tuner: 'A radio dial turns to a name', wheel: 'A game-show wheel (the default)',
+  };
   function everydayStyle() { var e = state.settings.everyday; return SPIN_STYLES.some(function (x) { return x[0] === e; }) ? e : 'wheel'; }
   function runStyle(style, fx, g) { return style === 'reel' ? reelSpin(fx, g, false) : FUN[style](fx, g); }
   // Fun spin shows each of the other styles once, in a new order, before any repeats, and never the same twice in a row.
@@ -2744,8 +2773,8 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     var waHref = 'https://wa.me/?text=' + encodeURIComponent(summary);
     var mailHref = 'mailto:?subject=' + encodeURIComponent('Keep in Touch stats') + '&body=' + encodeURIComponent(summary.replace(/\r?\n/g, '\r\n'));
     html += '<div class="panel"><h3>Share my stats</h3><p class="fine">For testers. Counts only: no names, numbers or label names.</p>' +
-      '<div class="btn-row"><a class="btn btn-call" id="share-wa" href="' + esc(waHref) + '" target="_blank" rel="noopener noreferrer">Send by WhatsApp</a><a class="btn btn-ink" id="share-mail" href="' + esc(mailHref) + '">Send by email</a></div>' +
-      '<div class="btn-row"><button class="btn" type="button" id="share-copy">Copy summary</button><button class="btn" type="button" id="share-file">Save as a file</button></div>' +
+      '<div class="btn-pair"><a class="btn btn-green" id="share-wa" href="' + esc(waHref) + '" target="_blank" rel="noopener noreferrer">Send by WhatsApp</a><a class="btn btn-ink" id="share-mail" href="' + esc(mailHref) + '">Send by email</a></div>' +
+      '<div class="btn-pair"><button class="btn" type="button" id="share-copy">Copy summary</button><button class="btn" type="button" id="share-file">Save as a file</button></div>' +
       '<p class="fine">WhatsApp or your email app opens with the summary filled in. You choose who gets it, and nothing is sent until you press send there.</p>' +
       '<p class="fine share-text" id="share-text"></p></div>';
     if (demo) html = '<p class="fine">These numbers come from the example contacts.</p>' + html;
@@ -2767,104 +2796,167 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     armed[which] = setTimeout(function () { armed[which] = 0; renderSettings(); }, 4000);
     renderSettings();
   }
+  // ------------------------------------------------------------ settings
+  // Like the phone's own Settings app: a short overview where each row names a setting and shows its current value,
+  // grouped by task, and each row opens its own page. Rarely used and risky things sit at the bottom.
+  var SETTINGS_PAGES = {
+    reminder: 'Daily reminder', spin: 'Your spin', explore: 'Someone new', contacts: 'Contacts', hidden: 'Hidden from spins',
+    backup: 'Backup', install: 'Home screen', help: 'Help and feedback', about: 'About', reset: 'Start over',
+  };
+  var RATES = [[0.1, 'Less', 'about 1 spin in 10'], [0.2, 'Normal', 'about 1 spin in 5'], [0.3, 'More', 'about 1 spin in 3']];
+  function exploreRate() { return state.settings && typeof state.settings.exploration === 'number' ? state.settings.exploration : E.PARAMS.exploration; }
+  function rateInfo(rate) { return RATES.filter(function (r) { return Math.abs(r[0] - rate) < 0.001; })[0] || [rate, 'Custom', 'about ' + Math.round(rate * 100) + '% of spins']; }
+  // "Sun–Thu", "Every day", or a list
+  function daysText(days) {
+    var d = days.slice().sort();
+    if (d.length === 7) return 'Every day';
+    var run = d.length > 2 && d[d.length - 1] - d[0] === d.length - 1;
+    return run ? DAY_NAMES[d[0]] + '–' + DAY_NAMES[d[d.length - 1]] : d.map(function (i) { return DAY_NAMES[i]; }).join(', ');
+  }
+  // one row: the setting's name, its current value underneath, and › because it opens a page
+  function row(attr, title, value, cls) {
+    return '<button class="row' + (cls ? ' ' + cls : '') + '" type="button" ' + attr + '><span class="row-text"><span class="row-title">' + esc(title) + '</span>' +
+      (value ? '<span class="row-value">' + value + '</span>' : '') + '</span><span class="chev" aria-hidden="true">›</span></button>';
+  }
+  // one choice in a list where exactly one is picked
+  function choice(attr, title, value, on) {
+    return '<button class="row" type="button" role="radio" aria-checked="' + on + '" aria-pressed="' + on + '" ' + attr + '><span class="row-text"><span class="row-title">' + esc(title) + '</span>' +
+      (value ? '<span class="row-value">' + esc(value) + '</span>' : '') + '</span><span class="tick" aria-hidden="true">' + (on ? '✓' : '') + '</span></button>';
+  }
+  function group(title, rows, label) {
+    return '<div class="group">' + (title ? '<h3 class="group-title">' + esc(title) + '</h3>' : '') + '<div class="rows"' + (label ? ' role="radiogroup" aria-label="' + esc(label) + '"' : '') + '>' + rows + '</div></div>';
+  }
+  function warn(text) { return '<span class="warn">' + esc(text) + '</span>'; }
+
   function renderSettings() {
-    var info = state.importInfo || {};
-    var hidden = E.hiddenPeople(state);
-    var rate = state.settings && typeof state.settings.exploration === 'number' ? state.settings.exploration : E.PARAMS.exploration;
-    var rem = state.settings.reminder || { time: '20:00', days: [0, 1, 2, 3, 4] };
-    var now = Date.now();
-    var sAll = E.stats(state, { now: now, days: 0 });
-    var day = testDay(now);
-    var html = '';
+    var sub = SETTINGS_PAGES[ui.sub] ? ui.sub : '';
+    $('settings-title').textContent = sub ? SETTINGS_PAGES[sub] : 'Settings';
+    $('settings-back').hidden = !sub;
+    $('settings-body').innerHTML = sub ? settingsPage(sub) : settingsOverview();
+    bindSettings();
+  }
 
-    html += '<div class="panel"><h3>Your test</h3><p class="fine">' +
-      (day ? (day <= TEST_DAYS ? 'Day ' + day + ' of ' + TEST_DAYS : 'The four weeks are up') + ' · ' + plural(sAll.wouldNotHave, 'call', 'calls') + ' you wouldn’t have made otherwise.' : 'Starts with your first spin.') +
-      '</p><button class="btn" type="button" data-go="test">Open the checkpoint</button></div>';
+  function settingsOverview() {
+    var now = Date.now(), info = state.importInfo || {}, rem = state.settings.reminder;
+    var sAll = E.stats(state, { now: now, days: 0 }), day = testDay(now);
+    var lb = state.settings.lastBackupAt || 0, hidden = E.hiddenPeople(state).length;
+    var mine = everydayStyle(), style = SPIN_STYLES.filter(function (x) { return x[0] === mine; })[0];
+    var html = group('', row('data-go="test"', 'Your test', esc(day ? (day <= TEST_DAYS ? 'Day ' + day + ' of ' + TEST_DAYS : 'The four weeks are up') + ' · ' +
+      plural(sAll.wouldNotHave, 'call', 'calls') + ' you wouldn’t have made otherwise' : 'Starts with your first spin'), 'row-test'));
+    html += group('Every day',
+      row('data-sub="reminder"', 'Daily reminder', esc((rem.moment ? rem.moment + ' · ' : '') + fmtClock(rem.time) + ' · ' + daysText(rem.days))) +
+      row('data-sub="spin"', 'Your spin', esc(style ? style[1] : 'Prize wheel')) +
+      row('data-sub="explore"', 'Someone new', esc(rateInfo(exploreRate())[1] + ': ' + rateInfo(exploreRate())[2])));
+    var backupValue = demo ? esc('Nothing to back up yet') : !storageOK ? warn('This browser isn’t keeping your data')
+      : lb ? (now - lb > 7 * DAY ? warn('Last backup: ' + fmtDate(lb)) : esc('Last backup: ' + fmtDate(lb))) : warn('No backup yet');
+    html += group('Contacts and backup',
+      row('data-sub="contacts"', 'Contacts', esc(demo ? 'Example contacts. Bring in yours' : plural(info.people || 0, 'person', 'people') + ' · ' + E.eligibleCount(state) + ' can come up')) +
+      row('data-sub="hidden"', 'Hidden from spins', esc(hidden ? plural(hidden, 'person', 'people') : 'Nobody')) +
+      row('data-sub="backup"', 'Backup', backupValue));
+    html += group('App',
+      (hosted || standalone ? row('data-sub="install"', 'Home screen', esc(standalone ? 'Installed' : 'Not installed')) : '') +
+      row('data-sub="help"', 'Help and feedback', esc('Send a help report')) +
+      row('data-sub="about"', 'About', esc('v' + APP_VERSION + ' · nothing leaves this device')));
+    if (!demo) html += group('', row('data-sub="reset"', 'Start over', esc('Reset what it learned, or erase everything'), 'row-danger'));
+    return html;
+  }
 
-    if (hosted || standalone) {
-      html += '<div class="panel"><h3>On your home screen</h3>';
-      if (standalone) html += '<p class="fine">Installed. It opens like an app and works without a signal.</p>';
-      else if (installPrompt) html += '<p class="fine">Install it so it opens like an app, full screen, and works without a signal.</p><button class="btn btn-ink" type="button" data-install>Install</button>';
-      else if (iosDevice) html += '<p class="fine">In Safari, tap <b>Share</b> (the square with an arrow), then <b>Add to Home Screen</b>.</p>';
-      else html += '<p class="fine">In Chrome, open the ⋮ menu and choose <b>Add to home screen</b> or <b>Install app</b>.</p>';
+  function settingsPage(sub) {
+    var now = Date.now(), html = '';
+    if (sub === 'reminder') {
+      var rem = state.settings.reminder || { time: '20:00', days: [0, 1, 2, 3, 4] };
+      var own = ownMoment || (!!rem.moment && !isPresetMoment(rem.moment));
+      var momentChip = function (value, label) {
+        return '<button class="chip" type="button" data-moment="' + esc(value) + '" aria-pressed="' + (!own && (rem.moment || '') === value ? 'true' : 'false') + '">' + esc(label) + '</button>';
+      };
+      var google = '<a class="btn' + (appleDevice ? '' : ' btn-ink') + '" id="rem-add" target="_blank" rel="noopener" href="' + esc(reminderUrl(rem) || '#') + '">Add to Google Calendar</a>';
+      var apple = '<a class="btn btn-ink" id="rem-ics" ' + (appleCalBlocked ? 'href="#" data-applecal' : 'href="' + esc(reminderIcsHref(rem)) + '" download="keep-in-touch-reminder.ics"' + (framed ? ' data-applecal' : '')) + '>Add to Apple Calendar</a>';
+      html += '<p class="sub">A repeating reminder in your calendar, so it works when the app is closed. Tie it to something you already do each day.</p>';
+      html += '<div class="panel"><h3>When</h3>' +
+        '<div class="chips" role="group" aria-label="When">' + MOMENTS.map(function (m) { return momentChip(m[0], m[0]); }).join('') + momentChip('', 'Just a time') +
+        '<button class="chip" type="button" data-moment-own aria-pressed="' + (own ? 'true' : 'false') + '">Your own</button></div>' +
+        (own ? '<input class="rem-own" id="rem-own" type="text" maxlength="40" autocomplete="off" placeholder="For example: After the kids are asleep" aria-label="Your own moment" value="' + esc(isPresetMoment(rem.moment) ? '' : rem.moment || '') + '">' : '') +
+        '<div class="rem-row"><label for="rem-time">Time</label><input type="time" id="rem-time" value="' + esc(rem.time) + '"><span class="fine" id="rem-time-label">' + fmtClock(rem.time) + '</span></div>' +
+        '<div class="days" role="group" aria-label="Days">' + DAY_NAMES.map(function (n, i) {
+          return '<button type="button" data-day="' + i + '" aria-pressed="' + (rem.days.indexOf(i) >= 0 ? 'true' : 'false') + '">' + n + '</button>';
+        }).join('') + '</div></div>';
+      html += '<div class="panel"><p class="rem-preview">It will say <b id="rem-preview">“' + esc(reminderTitle(rem)) + '”</b></p>' +
+        '<div class="btn-col">' + (appleDevice ? apple + google : google) + '</div>' +
+        '<p class="fine">Your calendar asks you to save it and alerts you at that time. To change it, set it here again, add it again, and delete the old one in your calendar.</p></div>';
+    } else if (sub === 'spin') {
+      var mine = everydayStyle();
+      html += '<p class="sub">Spin plays your everyday spin, and Spin again plays it quickly. Press and hold either one for a fun spin: one of the others.</p>';
+      html += group('', SPIN_STYLES.map(function (x) { return choice('data-everyday="' + x[0] + '"', x[1], SPIN_NOTES[x[0]], x[0] === mine); }).join(''), 'Everyday spin');
+    } else if (sub === 'explore') {
+      var rate = exploreRate();
+      html += '<p class="sub">How often a spin tries someone the app knows little about yet.</p>';
+      html += group('', RATES.map(function (r) { return choice('data-rate="' + r[0] + '"', r[1], r[2], Math.abs(r[0] - rate) < 0.001); }).join(''), 'Someone new');
+    } else if (sub === 'contacts') {
+      var info = state.importInfo || {};
+      if (demo) html += '<div class="panel"><p class="fine">You’re looking at example contacts.</p><button class="btn btn-ink" type="button" data-go="import">Bring in your contacts</button></div>';
+      else html += '<div class="panel"><ul class="facts">' +
+        fact('Brought in', info.at ? fmtDate(info.at) : '–') + fact('Contacts read', info.cards || 0) + fact('People after merging duplicates', info.people || 0) +
+        fact('Can come up', E.eligibleCount(state)) + fact('Without a phone number', info.noNumber || 0) + fact('Service numbers left out', info.serviceNumbers || 0) + '</ul></div>' +
+        '<div class="panel"><button class="btn" type="button" data-go="import">Update from a new contacts file</button>' +
+        '<p class="fine">Updating keeps everything the app has learned about people already here.</p></div>';
+    } else if (sub === 'hidden') {
+      var hidden = E.hiddenPeople(state);
+      if (!hidden.length) html += '<p class="sub">Nobody. People you tag as a business or “Don’t suggest” appear here, and you can put them back.</p>';
+      else {
+        html += '<p class="sub">They don’t come up in spins. Put someone back to include them again.</p><div class="panel"><ul class="plain-list">';
+        hidden.forEach(function (h) {
+          html += '<li><span><bdi>' + esc(h.name) + '</bdi> <span class="fine">· ' + (h.why === 'business' ? 'business' : 'don’t suggest') + '</span></span>' +
+            '<button class="btn btn-small" type="button" data-restore="' + esc(h.id) + '" data-why="' + h.why + '">Put back</button></li>';
+        });
+        html += '</ul></div>';
+      }
+    } else if (sub === 'backup') {
+      html += '<p class="sub">Everything lives only in this browser on this phone. A backup is one file; restore it on a new phone or after clearing the browser.</p>';
+      html += '<div class="panel"><ul class="status-list">';
+      if (demo) html += status(null, 'You’re looking at example contacts. Nothing is saved until you bring in yours.');
+      else {
+        html += status(storageOK, storageOK ? 'Saved on this device after every tap' + (lastSaved || state.updatedAt ? ' (last: ' + savedWhen(lastSaved || state.updatedAt) + ')' : '') : 'This browser isn’t keeping your data');
+        html += status(persisted === true ? true : persisted === false ? false : null,
+          persisted === true ? 'The browser has agreed to keep it' : persisted === false ? 'The browser may clear it if the phone runs low on space, so keep backups' : 'Asking the browser to keep it…');
+        var lb = state.settings.lastBackupAt || 0;
+        html += status(!!lb && now - lb <= 7 * DAY ? true : lb ? false : null, lb ? 'Last backup: ' + fmtDate(lb) : 'No backup yet');
+      }
+      html += '</ul><div class="btn-row"><button class="btn btn-ink" type="button" data-backup' + (demo ? ' disabled' : '') + '>Save a backup</button>' +
+        '<label class="btn file-btn">Restore a backup<input type="file" id="file-backup" accept=".json,application/json"></label></div>' +
+        '<p class="fine">The backup goes to your Downloads. It holds your contacts, so keep it private.</p></div>';
+    } else if (sub === 'install') {
+      html += '<div class="panel">';
+      if (standalone) html += '<p>Installed. It opens like an app and works without a signal.</p>';
+      else if (installPrompt) html += '<p>Install it so it opens like an app, full screen, and works without a signal.</p><button class="btn btn-ink" type="button" data-install>Install</button>';
+      else if (iosDevice) html += '<p>In Safari, tap <b>Share</b> (the square with an arrow), then <b>Add to Home Screen</b>. Then open it only from that icon.</p>';
+      else html += '<p>In Chrome, open the ⋮ menu and choose <b>Add to home screen</b> or <b>Install app</b>.</p>';
       html += '</div>';
+    } else if (sub === 'help') {
+      html += '<p class="sub">Something not working, or an idea? Send a help report. You choose who gets it.</p>';
+      html += '<div class="panel"><label class="field-label" for="help-note">What happened? (optional)</label>' +
+        '<textarea class="note" id="help-note" rows="4" maxlength="1000" placeholder="For example: the spin froze after I tapped Call">' + esc(helpNote) + '</textarea>' +
+        '<div class="btn-pair"><a class="btn btn-green" id="help-wa" target="_blank" rel="noopener noreferrer">Send by WhatsApp</a><a class="btn btn-ink" id="help-mail">Send by email</a></div>' +
+        '<button class="btn" type="button" id="help-copy">Copy report</button>' +
+        '<p class="fine">WhatsApp or your email app opens with the report filled in. Nothing is sent until you choose who gets it and press send there.</p></div>';
+      html += '<div class="panel"><h3>What the report includes</h3><p class="fine">The app’s version, your phone’s system and browser, the screen size, counts of contacts, spins and calls, your choices in Settings and the last few errors. The app never adds names, phone numbers, labels or the reminder’s wording.</p>' +
+        '<p class="fine share-text" id="help-text"></p></div>';
+    } else if (sub === 'about') {
+      html += '<div class="panel"><p><b>Your relationships aren’t our data.</b> Your contacts and everything the app learns stay on this device. No account, no tracking, no ads. The app downloads only its own code.</p>' +
+        '<ul class="facts">' + fact('Version', 'v' + APP_VERSION) + fact('Engine', esc(E.VERSION)) + '</ul></div>';
+    } else if (sub === 'reset') {
+      html += '<div class="panel"><h3>Reset what it learned</h3><p class="fine">Forgets tags, hidden people and what your taps taught it. Keeps your contacts and history.</p>' +
+        '<button class="btn" type="button" id="reset-learning">' + (armed.reset ? 'Tap again to reset' : 'Reset what it learned') + '</button></div>' +
+        '<div class="panel"><h3>Erase everything</h3><p class="fine">Removes your contacts and history from this browser. Save a backup first if you might want it.</p>' +
+        '<button class="btn danger" type="button" id="erase">' + (armed.erase ? 'Tap again to erase everything' : 'Erase everything on this device') + '</button></div>';
     }
+    return html;
+  }
 
-    var own = ownMoment || (!!rem.moment && !isPresetMoment(rem.moment));
-    var momentChip = function (value, label) {
-      return '<button class="chip" type="button" data-moment="' + esc(value) + '" aria-pressed="' + (!own && (rem.moment || '') === value ? 'true' : 'false') + '">' + esc(label) + '</button>';
-    };
-    var google = '<a class="btn' + (appleDevice ? '' : ' btn-ink') + '" id="rem-add" target="_blank" rel="noopener" href="' + esc(reminderUrl(rem) || '#') + '">Add to Google Calendar</a>';
-    var apple = '<a class="btn btn-ink" id="rem-ics" ' + (appleCalBlocked ? 'href="#" data-applecal' : 'href="' + esc(reminderIcsHref(rem)) + '" download="keep-in-touch-reminder.ics"' + (framed ? ' data-applecal' : '')) + '>Add to Apple Calendar</a>';
-    html += '<div class="panel"><h3>Daily reminder</h3><p class="fine">A repeating reminder in your calendar, so it works when the app is closed. Tie it to something you already do each day; that makes it more likely you’ll follow through.</p>' +
-      '<div class="chips" role="group" aria-label="When">' + MOMENTS.map(function (m) { return momentChip(m[0], m[0]); }).join('') + momentChip('', 'Just a time') +
-      '<button class="chip" type="button" data-moment-own aria-pressed="' + (own ? 'true' : 'false') + '">Your own</button></div>' +
-      (own ? '<input class="rem-own" id="rem-own" type="text" maxlength="40" autocomplete="off" placeholder="For example: After the kids are asleep" aria-label="Your own moment" value="' + esc(isPresetMoment(rem.moment) ? '' : rem.moment || '') + '">' : '') +
-      '<div class="rem-row"><label for="rem-time">Time</label><input type="time" id="rem-time" value="' + esc(rem.time) + '"><span class="fine" id="rem-time-label">' + fmtClock(rem.time) + '</span></div>' +
-      '<div class="days" role="group" aria-label="Days">' + DAY_NAMES.map(function (n, i) {
-        return '<button type="button" data-day="' + i + '" aria-pressed="' + (rem.days.indexOf(i) >= 0 ? 'true' : 'false') + '">' + n + '</button>';
-      }).join('') + '</div>' +
-      '<p class="rem-preview">It will say <b id="rem-preview">“' + esc(reminderTitle(rem)) + '”</b></p>' +
-      (appleDevice ? apple + google : google) +
-      '<p class="fine">Your calendar asks you to save it and alerts you at that time. To change it, set it here again, add it again, and delete the old one in your calendar.</p></div>';
-
-    html += '<div class="panel"><h3>Your data</h3><ul class="status-list">';
-    if (demo) html += status(null, 'You’re looking at example contacts. Nothing is saved until you bring in yours.');
-    else {
-      html += status(storageOK, storageOK ? 'Saved on this device after every tap' + (lastSaved || state.updatedAt ? ' (last: ' + savedWhen(lastSaved || state.updatedAt) + ')' : '') : 'This browser isn’t keeping your data');
-      html += status(persisted === true ? true : persisted === false ? false : null,
-        persisted === true ? 'The browser has agreed to keep it' : persisted === false ? 'The browser may clear it if the phone runs low on space, so keep backups' : 'Asking the browser to keep it…');
-      var lb = state.settings.lastBackupAt || 0;
-      html += status(!!lb && now - lb <= 7 * DAY ? true : lb ? false : null, lb ? 'Last backup: ' + fmtDate(lb) : 'No backup yet');
-    }
-    html += '</ul><div class="btn-row"><button class="btn btn-ink" type="button" data-backup' + (demo ? ' disabled' : '') + '>Save a backup</button>' +
-      '<label class="btn file-btn">Restore a backup<input type="file" id="file-backup" accept=".json,application/json"></label></div>' +
-      '<p class="fine">Everything lives only in this browser on this device. A backup is one file in your Downloads; restore it on a new phone or after clearing the browser.</p></div>';
-
-    html += '<div class="panel"><h3>Your contacts</h3>';
-    if (demo) html += '<p class="fine">You’re looking at example contacts.</p>';
-    else html += '<ul class="facts">' +
-      fact('Brought in', info.at ? fmtDate(info.at) : '–') + fact('Contacts read', info.cards || 0) + fact('People after merging duplicates', info.people || 0) +
-      fact('Can come up', E.eligibleCount(state)) + fact('Without a phone number', info.noNumber || 0) + fact('Service numbers left out', info.serviceNumbers || 0) + '</ul>';
-    html += '<button class="btn" type="button" data-go="import">' + (demo ? 'Bring in your contacts' : 'Update from a new contacts file') + '</button>';
-    if (!demo) html += '<p class="fine">Updating keeps everything the app has learned about people already here.</p>';
-    html += '</div>';
-
-    html += '<div class="panel"><h3>Hidden from spins</h3>';
-    if (!hidden.length) html += '<p class="fine">Nobody. People you tag as a business or “Don’t suggest” appear here.</p>';
-    else {
-      html += '<ul class="plain-list">';
-      hidden.forEach(function (h) {
-        html += '<li><span><bdi>' + esc(h.name) + '</bdi> <span class="fine">· ' + (h.why === 'business' ? 'business' : 'don’t suggest') + '</span></span>' +
-          '<button class="btn btn-small" type="button" data-restore="' + esc(h.id) + '" data-why="' + h.why + '">Put back</button></li>';
-      });
-      html += '</ul>';
-    }
-    html += '</div>';
-
-    var mine = everydayStyle();
-    html += '<div class="panel"><h3>Your spin</h3><p class="fine">Spin plays your everyday spin, and Spin again plays it quickly. Press and hold Spin or Spin again for a fun spin: one of the others, a different one each time.</p>' +
-      '<div class="chips" role="radiogroup" aria-label="Everyday spin">' + SPIN_STYLES.map(function (x) {
-        return '<button class="chip" type="button" role="radio" data-everyday="' + x[0] + '" aria-checked="' + (x[0] === mine) + '" aria-pressed="' + (x[0] === mine) + '">' + x[1] + '</button>';
-      }).join('') + '</div></div>';
-
-    html += '<div class="panel"><h3>How often to try someone new</h3><div class="seg" role="group" aria-label="How often to try someone new">' +
-      seg(0.1, 'Less', rate) + seg(0.2, 'Normal', rate) + seg(0.3, 'More', rate) + '</div>' +
-      '<p class="fine">“Normal” tries someone the app knows little about on one spin in five.</p></div>';
-
-    html += '<div class="panel"><h3>About</h3><p class="fine"><b>Your relationships aren’t our data.</b> Your contacts and everything the app learns stay on this device. No account, no tracking, no ads. The app downloads only its own code.</p>' +
-      '<p class="fine">Keep in Touch v' + APP_VERSION + ' · engine ' + E.VERSION + '</p></div>';
-
-    if (!demo) html += '<div class="panel"><h3>Start over</h3>' +
-      '<p class="fine">Reset what it learned: forgets tags, hidden people and what your taps taught it. Keeps your contacts and history.</p>' +
-      '<button class="btn" type="button" id="reset-learning">' + (armed.reset ? 'Tap again to reset' : 'Reset what it learned') + '</button>' +
-      '<p class="fine">Erase everything: removes your contacts and history from this browser. Save a backup first if you might want it.</p>' +
-      '<button class="btn danger" type="button" id="erase">' + (armed.erase ? 'Tap again to erase everything' : 'Erase everything on this device') + '</button></div>';
-    $('settings-body').innerHTML = html;
-
-    $('file-backup').addEventListener('change', onBackupFile);
+  function bindSettings() {
+    var fileEl = $('file-backup');
+    if (fileEl) fileEl.addEventListener('change', onBackupFile);
     var timeEl = $('rem-time');
-    timeEl.addEventListener('change', function () {
+    if (timeEl) timeEl.addEventListener('change', function () {
       if (!/^\d{2}:\d{2}$/.test(timeEl.value)) return;
       state.settings.reminder = Object.assign({}, state.settings.reminder, { time: timeEl.value });
       save();
@@ -2889,14 +2981,117 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     if (er) er.addEventListener('click', function () {
       if (!armed.erase) { arm('erase'); return; }
       clearTimeout(armed.erase); armed.erase = 0;
-      try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+      try { localStorage.removeItem(STORE_KEY); localStorage.removeItem(ERR_KEY); } catch (e) {}
       demo = true; state = demoState(); ui.pick = null; ui.mode = 'idle';
       toast('Erased. You’re back to the example contacts.');
       go('spin');
     });
+    var note = $('help-note');
+    if (note) {
+      var update = function () {
+        helpNote = note.value;
+        var report = helpReport(helpNote.replace(/\s+/g, ' ').trim(), Date.now());
+        $('help-text').textContent = report;
+        $('help-wa').href = 'https://wa.me/?text=' + encodeURIComponent(report);
+        $('help-mail').href = 'mailto:?subject=' + encodeURIComponent('Keep in Touch help report') + '&body=' + encodeURIComponent(report.replace(/\r?\n/g, '\r\n'));
+      };
+      note.addEventListener('input', update);
+      update();
+      $('help-copy').addEventListener('click', function (ev) {
+        var btn = ev.currentTarget;
+        copyText($('help-text').textContent, function (ok) { btn.textContent = ok ? 'Copied' : 'Selected. Copy it now'; }, $('help-text'));
+      });
+    }
   }
-  function seg(value, label, rate) {
-    return '<button type="button" data-rate="' + value + '" aria-pressed="' + (Math.abs(rate - value) < 0.001 ? 'true' : 'false') + '">' + label + '</button>';
+
+  // ------------------------------------------------------------ the help report
+  // For support: technical facts and counts, never names, numbers, labels or the reminder's wording. The tester sends it
+  // by WhatsApp or email to whoever they choose. The last few script errors are kept on this device for it, outside the
+  // saved state and backups, with anything in quotes and any long run of digits taken out.
+  var ERR_KEY = 'kit.v0.errors';
+  var helpNote = '';
+  function scrubError(s) { return String(s || '').replace(/(["'“‘`]).*?(["'”’`])/g, '…').replace(/\d{4,}/g, '#').slice(0, 160); }
+  function logError(message, where) {
+    try {
+      var list = JSON.parse(localStorage.getItem(ERR_KEY) || '[]');
+      list.push({ t: Date.now(), m: scrubError(message), at: scrubError(where), v: APP_VERSION });
+      localStorage.setItem(ERR_KEY, JSON.stringify(list.slice(-10)));
+    } catch (e) {}
+  }
+  window.addEventListener('error', function (ev) { logError(ev.message, ev.filename ? String(ev.filename).split('/').pop() + ':' + ev.lineno : ''); });
+  window.addEventListener('unhandledrejection', function (ev) { var r = ev.reason; logError(r && r.message ? r.message : r, 'promise'); });
+  function deviceLine() {
+    var m, os = 'unknown system', browser = 'unknown browser';
+    if ((m = /Android (\d+(?:\.\d+)?)/.exec(ua))) os = 'Android ' + m[1];
+    else if ((m = / OS (\d+)_(\d+)/.exec(ua)) && iosDevice) os = (/iPad/.test(ua) ? 'iPadOS ' : 'iOS ') + m[1] + '.' + m[2];
+    else if (iosDevice) os = 'iPadOS';
+    else if (/Windows/.test(ua)) os = 'Windows'; else if (/Macintosh/.test(ua)) os = 'Mac'; else if (/Linux/.test(ua)) os = 'Linux';
+    if ((m = /SamsungBrowser\/(\d+)/.exec(ua))) browser = 'Samsung Internet ' + m[1];
+    else if ((m = /EdgA?\/(\d+)/.exec(ua))) browser = 'Edge ' + m[1];
+    else if ((m = /(?:Chrome|CriOS)\/(\d+)/.exec(ua))) browser = 'Chrome ' + m[1];
+    else if ((m = /(?:Firefox|FxiOS)\/(\d+)/.exec(ua))) browser = 'Firefox ' + m[1];
+    else if ((m = /Version\/(\d+(?:\.\d+)?).*Safari/.exec(ua))) browser = 'Safari ' + m[1];
+    return os + ' · ' + browser;
+  }
+  function daysAgo(t, now) { var d = Math.floor((now - t) / DAY); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago'; }
+  function helpReport(note, now) {
+    var info = state.importInfo || {}, s = E.stats(state, { now: now, days: 0 }), lb = state.settings.lastBackupAt || 0, errors = [], dark = false;
+    try { errors = JSON.parse(localStorage.getItem(ERR_KEY) || '[]'); } catch (e) {}
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    var lines = [
+      'Keep in Touch help report',
+      'What happened: ' + (note || '(nothing written)'),
+      '',
+      'App: v' + APP_VERSION + ' · engine ' + E.VERSION + ' · ' + (standalone ? 'installed' : hosted ? 'in the browser' : 'single file') + (demo ? ' · example contacts' : ''),
+      'Saving: ' + (storageOK ? 'works' : 'not working') + ' · browser keeps data: ' + (persisted === true ? 'yes' : persisted === false ? 'no' : 'not known') + ' · last backup: ' + (lb ? daysAgo(lb, now) : 'never'),
+      'Phone: ' + deviceLine() + ' · screen ' + screen.width + '×' + screen.height + ' · window ' + window.innerWidth + '×' + window.innerHeight +
+        ' · dark mode ' + (dark ? 'on' : 'off') + ' · language ' + (navigator.language || 'not known'),
+      'Contacts: ' + (info.cards || 0) + ' read · ' + (info.people || 0) + ' people · ' + E.eligibleCount(state) + ' can come up · ' + E.hiddenPeople(state).length + ' hidden',
+      'Use: ' + (E.testStart(state) ? 'day ' + testDay(now) + ' since the first spin' : 'no spins yet') + ' · ' + plural(s.spins, 'spin') + ' · ' + plural(s.calls, 'call'),
+      'Settings: everyday spin ' + everydayStyle() + ' · someone new ' + rateInfo(exploreRate())[1].toLowerCase() + ' · reminder added to a calendar: ' + (state.settings.reminderAddedAt ? 'yes' : 'no'),
+      'Recent errors: ' + (errors.length ? errors.length : 'none'),
+    ];
+    errors.forEach(function (e) { lines.push('- ' + new Date(e.t).toISOString().slice(0, 16).replace('T', ' ') + ' UTC, v' + e.v + ': ' + e.m + (e.at ? ' (' + e.at + ')' : '')); });
+    lines.push('', 'The app adds no names, phone numbers or labels to this report.');
+    return lines.join('\n');
+  }
+
+  // ------------------------------------------------------------ moving between screens
+  // Settings pages, the test and bringing in contacts are one step down. Each step is a step in the browser's history,
+  // so the phone's back gesture (and the ← button) returns to where you came from instead of closing the app.
+  var deeper = [];                      // the screen under each open step, newest last
+  var unwinding = null, unwindTimer = 0;
+  function openDeeper(view, sub) {
+    deeper.push({ view: ui.view, sub: ui.sub || '', y: window.scrollY || 0 });
+    try { history.pushState({ kit: deeper.length }, ''); } catch (e) {}
+    show(view, sub || '', 0);
+  }
+  function unwind(steps, to) {
+    unwinding = { steps: steps, to: to };
+    clearTimeout(unwindTimer);
+    unwindTimer = setTimeout(finishUnwind, 700); // in case the browser never reports the step back
+    try { history.go(-steps); } catch (e) { finishUnwind(); }
+  }
+  function finishUnwind() {
+    clearTimeout(unwindTimer);
+    var u = unwinding;
+    unwinding = null;
+    if (!u) return;
+    deeper.length = Math.max(0, deeper.length - u.steps);
+    show(u.to.view, u.to.sub, u.to.y || 0);
+  }
+  window.addEventListener('popstate', function () {
+    if (unwinding) { finishUnwind(); return; }
+    if (!deeper.length) return;
+    var from = deeper.pop(); // the phone's back gesture: one step back
+    show(from.view, from.sub, from.y);
+  });
+  function goBack() { if (deeper.length) unwind(1, deeper[deeper.length - 1]); else show('settings', '', 0); }
+  // a main screen (the tabs, and links such as "Go spin"): leaves any open steps first
+  function go(view) {
+    if (view === 'test' || view === 'import') { openDeeper(view, ''); return; }
+    if (deeper.length) unwind(deeper.length, { view: view, sub: '' });
+    else show(view, '', 0);
   }
 
   // ------------------------------------------------------------ importing and restoring
@@ -2968,8 +3163,9 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
 
   // ------------------------------------------------------------ navigation
   var VIEWS = ['spin', 'history', 'test', 'settings', 'import'];
-  function go(view) {
+  function show(view, sub, y) {
     ui.view = view;
+    ui.sub = view === 'settings' ? sub || '' : '';
     VIEWS.forEach(function (v) { $('view-' + v).hidden = v !== view; });
     var tabs = document.querySelectorAll('.tab');
     for (var i = 0; i < tabs.length; i++) {
@@ -2979,7 +3175,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
     }
     if (view !== 'import') $('import-result').hidden = true;
     render();
-    try { window.scrollTo(0, 0); } catch (e) {}
+    try { window.scrollTo(0, y || 0); } catch (e) {}
   }
 
   function render() {
@@ -3021,7 +3217,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       // Share my stats says yes/no to "added the reminder" (an iPhone that adds it from Safari can't tell the app)
       var cal = ev.target.closest ? ev.target.closest('#rem-add, #rem-ics') : null;
       if (cal && !demo && !(cal.id === 'rem-ics' && appleCalBlocked)) { E.markReminderAdded(state, Date.now()); save(); }
-      var t = ev.target.closest ? ev.target.closest('[data-go],[data-action],[data-tag],[data-rate],[data-restore],[data-verdict],[data-day],[data-install],[data-backup],[data-snooze],[data-moment],[data-moment-own],[data-applecal],[data-everyday]') : null;
+      var t = ev.target.closest ? ev.target.closest('[data-go],[data-action],[data-tag],[data-rate],[data-restore],[data-verdict],[data-day],[data-install],[data-backup],[data-snooze],[data-moment],[data-moment-own],[data-applecal],[data-everyday],[data-sub],[data-back]') : null;
       if (!t) return;
       if (t.hasAttribute('data-applecal')) {
         ev.preventDefault();
@@ -3031,7 +3227,7 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
       }
       if (t.hasAttribute('data-everyday')) {
         state.settings.everyday = t.getAttribute('data-everyday');
-        save(); renderSettings(); toast('Your everyday spin: ' + t.textContent + '.');
+        save(); renderSettings(); toast('Your everyday spin: ' + (t.querySelector('.row-title') || t).textContent + '.');
         return;
       }
       if (t.hasAttribute('data-moment')) {
@@ -3048,6 +3244,8 @@ body.no-select, body.no-select *, .fx, .fx * { -webkit-user-select: none !import
         if ($('rem-own')) $('rem-own').focus();
         return;
       }
+      if (t.hasAttribute('data-sub')) { openDeeper('settings', t.getAttribute('data-sub')); return; }
+      if (t.hasAttribute('data-back')) { goBack(); return; }
       if (t.hasAttribute('data-go')) { go(t.getAttribute('data-go')); return; }
       if (t.hasAttribute('data-action')) { if (heldFun && /^(reroll|spin)$/.test(t.getAttribute('data-action'))) { heldFun = false; return; } onAction(t.getAttribute('data-action')); return; }
       if (t.hasAttribute('data-tag')) { onTag(t.getAttribute('data-tag')); return; }
