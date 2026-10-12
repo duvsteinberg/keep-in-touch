@@ -100,18 +100,17 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   await page.click('#import-result [data-go="spin"]');
   ok((await page.textContent('#saved-line')).startsWith('Saved on this device'), 'shows "Saved on this device"');
 
-  // a day of use: the first spin of the day runs the full reel, and the name lands where it will stay
+  // a day of use: the first spin of the day plays the everyday spin in full (the prize wheel for a new user),
+  // and the clicker stops on the slice of the person who lands on the card
   await page.click('#dial');
-  await sleep(600);
-  const reel = await page.evaluate(() => {
-    const rows = [...document.querySelectorAll('#card .fx .reel-row')];
-    return { rows: rows.length, landing: rows[28] ? rows[28].textContent : '', hidden: document.getElementById('card').classList.contains('spinning') };
-  });
-  await sleep(1400);
+  await sleep(300);
+  const wheel = await page.evaluate(() => { const fx = document.querySelector('#card .fx'); return { kind: fx ? fx.getAttribute('data-spin') : 'none', hidden: document.getElementById('card').classList.contains('spinning') }; });
+  const stoppedOn = await page.waitForFunction(() => { const l = document.querySelector('#card .fx .w-label.on'); return l && l.textContent; }, null, { timeout: 3300, polling: 30 }).then((h) => h.jsonValue(), () => '');
+  await page.waitForFunction(() => !document.querySelector('#card .fx'), null, { timeout: 3300, polling: 50 }).catch(() => {});
   const first = (await page.textContent('#pname')).trim();
   ok(first.length > 1, 'spin picks someone: ' + first);
-  ok(reel.rows >= 30 && reel.hidden && reel.landing === first && !(await page.$('#card .fx')),
-    'the first spin streams names through the whole card and lands on the pick (' + reel.rows + ' names)');
+  ok(wheel.kind === 'wheel' && wheel.hidden && !!stoppedOn && first.startsWith(stoppedOn.replace('…', '')) && !(await page.$('#card .fx')),
+    'a new user’s first spin plays the prize wheel, and the clicker stops on the pick (' + stoppedOn + ')');
   await page.click('[data-tag="family"]');
   ok((await page.textContent('#pname')).trim() === first && (await page.getAttribute('[data-tag="family"]', 'aria-pressed')) === 'true', 'Family labels without respinning');
   await page.click('[data-tag="family"]');
@@ -165,20 +164,37 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   const added = (await kinds()).slice(before);
   ok(added.length === 1 && added[0] === 'show', 'Spin again after Business records a new spin only: ' + added.join(', '));
 
-  // after the first spin of the day, Spin again is a quick reveal; the "appreciate a call" line only shows on someone new
+  // after the first spin of the day, Spin again plays the everyday spin quickly; the "appreciate a call" line only shows on someone new
   // (each "Spin again" sets that person aside for a day, so the small test book runs out after a few)
-  let quickOk = true, nudgeOk = true, explored = 0, spins = 0;
+  let quickOk = true, nudgeOk = true, explored = 0, spins = 0, slowest = 0;
+  const quickKinds = new Set();
   for (let i = 0; i < 5; i++) {
-    await page.click('[data-action="reroll"]');
-    await sleep(700);
+    // timed inside the page, from the tap until the card is back, so the test tool's own delays don't count
+    const { k, ms } = await page.evaluate(() => new Promise((resolve) => {
+      const b = document.querySelector('[data-action="reroll"]');
+      if (!b) { resolve({ k: 'none', ms: 0 }); return; }
+      const t0 = performance.now();
+      let k = 'none';
+      b.click();
+      (function poll() {
+        const fx = document.querySelector('#card .fx');
+        if (fx && k === 'none') k = fx.getAttribute('data-spin') + ' ' + fx.getAttribute('data-style');
+        const c = document.getElementById('card');
+        if (!c || !c.classList.contains('spinning') || performance.now() - t0 > 2500) { resolve({ k, ms: performance.now() - t0 }); return; }
+        setTimeout(poll, 15);
+      })();
+    }));
     if (await page.isVisible('#empty')) break;
     spins++;
+    slowest = Math.max(slowest, ms);
+    quickKinds.add(k);
     if (!(await page.isVisible('#act-picked'))) quickOk = false;
     const isNew = (await page.textContent('#eyebrow')).trim() === 'Someone new to try';
     if (isNew) explored++;
     if (isNew !== (await page.isVisible('#nudge'))) nudgeOk = false;
   }
-  ok(quickOk && spins >= 2, 'Spin again after the first spin of the day is quick: done in under 0.7 s (' + spins + ' spins)');
+  ok(quickOk && spins >= 2 && slowest < 1500 && [...quickKinds].every((k) => k === 'quick wheel'),
+    'Spin again after the first spin of the day plays the everyday spin quickly: ' + [...quickKinds].join(', ') + ', slowest ' + (slowest / 1000).toFixed(2) + ' s (' + spins + ' spins)');
   ok(nudgeOk, '"People usually appreciate a call" shows on someone new to try, and only there (' + explored + ' of ' + spins + ' were someone new)');
 
   // settings: reminder, backup, test checkpoint, verdict, reset learning
@@ -231,7 +247,8 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   await sleep(100);
   ok((await page.getAttribute('[data-verdict="yes"]', 'aria-pressed')) === 'true', '"Would you spin again tomorrow?" records an answer');
   const testText = await page.textContent('#test-body');
-  ok(/Calls you wouldn’t have made otherwise/.test(testText) && /Is it getting better\?/.test(testText) && /Week 1/.test(testText), 'checkpoint shows the North Star, week 1 vs week 2, and the verdict');
+  ok(/Calls you wouldn’t have made otherwise/.test(testText) && /Is it getting better\?/.test(testText) && /Week 1/.test(testText) && /Day \d+ of 28/.test(await page.textContent('#test-sub')) &&
+    !/suggested|two weeks|of 14/i.test(testText), 'the test screen counts four weeks, shows the North Star week by week and the verdict, and sets no target');
   const shareText = await page.textContent('#share-text');
   ok(shareText.includes('spin again tomorrow: Yes'), 'the shareable summary includes the verdict');
   ok(shareText.includes('Reminder added to a calendar: yes') && /Seconds from first spin to Call \(median\): \d+/.test(shareText), 'the shareable summary says the reminder was added, and the seconds to Call');
@@ -246,7 +263,8 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
   await sleep(100);
   ok((await page.textContent('#toast-text')).includes('Reset'), 'reset what it learned (two taps), keeping contacts');
 
-  // the big Spin plays your everyday spin (the reel unless you choose another); holding plays one of the other styles, inside the card
+  // the big Spin plays your everyday spin (the prize wheel unless you choose another), Spin again plays it quickly;
+  // holding plays one of the other styles, inside the card
   await page.click('.tab[data-go="spin"]');
   const hold = async (selector) => { await page.locator(selector).scrollIntoViewIfNeeded(); const b = await page.locator(selector).boundingBox(); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down(); await sleep(650); await page.mouse.up(); };
   // A spin "lands" when its layer is gone by itself. The app clears a stuck layer after 4 s, so the wait stops
@@ -256,28 +274,34 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     if (held) await hold(selector); else await page.click(selector);
     const t0 = Date.now();
     await sleep(at);
-    const kind = await page.evaluate(() => { const fx = document.querySelector('#card .fx'); return fx ? fx.getAttribute('data-spin') + ':' + fx.querySelectorAll('.reel-row').length : 'none'; });
+    const seen = await page.evaluate(() => {
+      const fx = document.querySelector('#card .fx');
+      const rows = fx ? [...fx.querySelectorAll('.reel-row')] : [];
+      return { kind: fx ? fx.getAttribute('data-spin') + ':' + rows.length : 'none', style: fx ? fx.getAttribute('data-style') : '', landing: rows.length >= 30 ? rows[28].textContent : '' };
+    });
     const gone = await page.waitForFunction(() => !document.querySelector('#card .fx'), null, { timeout: Math.max(100, 3300 - (Date.now() - t0)), polling: 50 }).then(() => true, () => false);
     const secs = ((Date.now() - t0) / 1000 + (held ? 0.17 : 0)).toFixed(1);
     await sleep(Math.max(0, 2600 - (Date.now() - t0)));
-    return { kind, secs, landed: gone && (await page.textContent('#pname')).trim().length > 1 };
+    const name = (await page.textContent('#pname')).trim();
+    return { kind: seen.kind, style: seen.style, landing: seen.landing, name, secs, landed: gone && name.length > 1 };
   };
   const timed = (r, name) => name + ' ' + r.secs + ' s' + (r.landed ? '' : ' (did not land)');
   const fulls = [await spinKind('#dial', 300), await spinKind('#dial', 300)];
-  ok(fulls.every((r) => /^full:\d+/.test(r.kind) && parseInt(r.kind.split(':')[1], 10) >= 30 && r.landed), 'the big Spin plays the full reel every time: ' + fulls.map((r) => r.kind).join(', '));
+  ok(fulls.every((r) => r.kind.startsWith('wheel') && r.landed), 'the big Spin plays the everyday spin in full every time: ' + fulls.map((r) => r.kind).join(', '));
   const quick = await spinKind('[data-action="reroll"]', 150);
-  ok(/^quick:/.test(quick.kind) && quick.landed, 'Spin again stays quick after the first spin of the day: ' + quick.kind);
+  ok(/^quick:/.test(quick.kind) && quick.style === 'wheel' && quick.landed, 'Spin again plays the everyday spin quickly: ' + quick.kind + ' ' + quick.style);
   const funs = [];
   for (let i = 0; i < 3; i++) funs.push(await spinKind('#dial', 0, true));
   funs.push(await spinKind('[data-action="reroll"]', 0, true));
   const styles = funs.map((r) => r.kind.split(':')[0]);
-  ok(new Set(styles).size === 4 && styles.every((x) => ['orbit', 'deal', 'board', 'spotlight', 'classic', 'phone', 'tuner', 'wheel'].includes(x)) && funs.every((r) => r.landed),
+  ok(new Set(styles).size === 4 && styles.every((x) => ['reel', 'orbit', 'deal', 'board', 'spotlight', 'classic', 'phone', 'tuner'].includes(x)) && funs.every((r) => r.landed),
     'holding Spin or Spin again plays a fun spin, a different style each time, and lands each time: ' + funs.map((r, i) => timed(r, styles[i])).join(', '));
   const funCount = await page.evaluate(() => JSON.parse(localStorage.getItem('kit.v0.state')).events.filter((e) => e.k === 'show' && e.f).length);
   ok(funCount === 4, 'the engine marks the fun spins (' + funCount + ')');
   await page.click('.tab[data-go="settings"]');
   await page.click('#settings-body [data-go="test"]');
-  ok(/Everyday spin: reel · fun spins: 4, calls from them: 0/.test(await page.textContent('#share-text')), 'Share my stats counts the fun spins');
+  const shared = await page.textContent('#share-text');
+  ok(/Everyday spin: wheel · fun spins: 4, calls from them: 0/.test(shared) && /fun spins\): w1 \d+·\d+·\d+·4/.test(shared), 'Share my stats counts the fun spins, in all and week by week');
   // every style, chosen as the everyday spin, plays on a tap and lands by itself (a fresh start each time, so the small book never runs out)
   const everyStyle = [];
   for (const style of ['reel', 'orbit', 'deal', 'board', 'spotlight', 'classic', 'phone', 'tuner', 'wheel']) {
@@ -286,19 +310,21 @@ const serverUp = (port) => new Promise((r) => server.listen(port, '127.0.0.1', r
     await page.click('[data-everyday="' + style + '"]');
     await page.click('.tab[data-go="spin"]');
     const r = await spinKind('#dial', 300);
-    everyStyle.push({ style, r, right: r.landed && r.kind.startsWith(style === 'reel' ? 'full' : style) });
+    everyStyle.push({ style, r, right: r.landed && r.kind.startsWith(style === 'reel' ? 'full' : style) && (style !== 'reel' || r.landing === r.name) });
   }
-  ok(everyStyle.every((x) => x.right), 'each of the nine styles plays when chosen and lands: ' +
+  ok(everyStyle.every((x) => x.right), 'each of the nine styles plays when chosen and lands (the reel on the pick): ' +
     everyStyle.map((x) => timed(x.r, x.style) + (x.r.kind.startsWith(x.style === 'reel' ? 'full' : x.style) ? '' : ' (played ' + x.r.kind + ')')).join(', '));
   await page.click('.tab[data-go="settings"]');
   await page.click('#reset-learning'); await page.click('#reset-learning'); await sleep(100);
-  await page.click('[data-everyday="wheel"]');
-  ok((await page.getAttribute('[data-everyday="wheel"]', 'aria-checked')) === 'true', 'Settings lets you choose your everyday spin');
+  await page.click('[data-everyday="orbit"]');
+  ok((await page.getAttribute('[data-everyday="orbit"]', 'aria-checked')) === 'true', 'Settings lets you choose your everyday spin');
   await page.click('.tab[data-go="spin"]');
-  const tapWheel = await spinKind('#dial', 300);
+  const tapOrbit = await spinKind('#dial', 300);
+  const againOrbit = await spinKind('[data-action="reroll"]', 100);
   const holdOther = await spinKind('#dial', 0, true);
-  ok(tapWheel.kind.startsWith('wheel') && tapWheel.landed && !holdOther.kind.startsWith('wheel') && holdOther.landed,
-    'tapping Spin plays your everyday spin (' + tapWheel.kind + '); holding plays another (' + holdOther.kind + ')');
+  ok(tapOrbit.kind.startsWith('orbit') && tapOrbit.landed && againOrbit.kind.startsWith('quick') && againOrbit.style === 'orbit' && againOrbit.landed &&
+    !holdOther.kind.startsWith('orbit') && holdOther.landed,
+    'with Orbit chosen, Spin plays it, Spin again plays it quickly (' + againOrbit.secs + ' s), and holding plays another (' + holdOther.kind + ')');
   const cardTop = await page.evaluate(() => document.getElementById('card').getBoundingClientRect().top);
   ok(cardTop >= -2 && cardTop < 80, 'after a spin the card sits at the top of the screen (' + Math.round(cardTop) + ' px)');
   await page.click('.tab[data-go="settings"]');

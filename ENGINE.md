@@ -1,6 +1,6 @@
 # Keep in Touch: the engine
 
-> Engine 0.1.8, updated 2026-10-12. 0.1.8 keeps the word lists to general English; 0.1.7 is English only and shares the everyday spin; 0.1.6 counts fun spins (picks unchanged); 0.1.5 added more service and family words (below); 0.1.4 added a measure only. The blueprint's Phase 1 deliverable: the relationship engine's spec plus a simulation, independent of the final app.
+> Engine 0.1.9, updated 2026-10-12. 0.1.9 counts fun spins week by week and makes the prize wheel the default everyday spin (picks unchanged); 0.1.8 keeps the word lists to general English; 0.1.7 is English only and shares the everyday spin; 0.1.6 counts fun spins (picks unchanged); 0.1.5 added more service and family words (below); 0.1.4 added a measure only. The blueprint's Phase 1 deliverable: the relationship engine's spec plus a simulation, independent of the final app.
 > Code: `src/engine.js`, `src/vcard.js`. Tests: `test/test.js`. Simulation: `sim/simulate.js`, results in `sim/SIM-REPORT.md`.
 
 ## What it answers
@@ -79,10 +79,10 @@ The keyword lists (`KEYWORDS` in `engine.js`) are first drafts, in English. Bad 
 
 - **North Star: calls initiated that wouldn't have happened otherwise.** That's the blueprint's "Meaningful Connections Initiated". After every call, answered or not, the app asks "Would you have called them today without this?" A "No" counts. Conversations are tracked as a subset.
 - **The Phase 1 pass mark,** asked of the person: "Would you spin again tomorrow?" The latest answer counts.
-- **Is it learning?** Week 1 against week 2 of the test: days that led to a call, a call from the first three spins, spins per call.
+- **Is it learning?** Week by week through the four-week test: days used, days that led to a call, a call from the first three spins, spins per call.
 - **Does it get out of the way?** Seconds from the first spin of a sitting to tapping Call (median; a sitting starts after a 30-minute break). The constitution wants seconds in the app and a long conversation somewhere else.
-- **Everyday spin:** which spin style they chose in Settings (a style name only).
-- **Fun spins:** how many spins were fun spins, and how many calls came from them. A fun spin only changes the animation: the pick is exactly the same as a regular spin (a test checks this), so the measures stay comparable.
+- **Everyday spin:** which spin style they use every day (a style name only; the prize wheel unless they chose another in Settings).
+- **Fun spins:** how many spins were fun spins, how many calls came from them, and how many fun spins each week (so the stats show whether people who play with spins keep coming back). A fun spin only changes the animation: the pick is exactly the same as a regular spin (a test checks this), so the measures stay comparable.
 - **Reminder added:** yes or no, whether they tapped "Add to calendar" on this device. Never the time, wording or days.
 - Also: days used, calls, conversations, rerolls, tags used, people called, how often exploration found someone.
 - **For tuning across testers' books:** every week since the first spin (does use hold up after the novelty?), and picks by day-one signal: for each signal code, how many people who can come up have it, how often they were shown, called and spun past, and how many are tagged Business, Don't suggest, or Friend/Family. A signal whose people keep getting spun past or tagged Business is weighted wrong. Counts by code only, never names or label names (a test checks this).

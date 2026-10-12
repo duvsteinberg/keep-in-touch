@@ -491,7 +491,9 @@ test('fun spins pick exactly like any spin, and are counted', () => {
   assert.equal(st.funSpins, 10);
   assert.equal(st.funCalls, 1);
   assert.equal(K.stats(a, { now: T0 + DAY, days: 0 }).funSpins, 0);
-  assert.match(K.shareableText(b, T0 + DAY, '0'), /Everyday spin: reel · fun spins: 10, calls from them: 1/);
+  assert.match(K.shareableText(b, T0 + DAY, '0'), /Everyday spin: wheel · fun spins: 10, calls from them: 1/);
+  assert.match(K.shareableText(b, T0 + DAY, '0'), /^By week \(days used · calls · wouldn’t have happened · fun spins\): w1 \d+·2·0·10$/m, 'fun spins week by week');
+  assert.equal(K.defaultSettings().everyday, 'wheel', 'the prize wheel is the everyday spin for a new user');
   b.settings.everyday = 'phone';
   const back = K.deserialize(K.serialize(b));
   assert.equal(K.shareableStats(back, T0 + DAY).everydaySpin, 'phone', 'the chosen everyday spin is saved and shared');
